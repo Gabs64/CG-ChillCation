@@ -1,0 +1,20 @@
+{
+  "name": "cg-chillcation-backend",
+  "version": "1.0.0",
+  "description": "CG Chillcation Express API Backend Server - Ready for Railway Deployment",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "sqlite3": "^6.0.1"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "cg-chillcation",
+  "version": "1.0.0",
+  "description": "G's Booking System - CG Chillcation (Railway Backend & Vercel Frontend Architecture)",
+  "private": true,
+  "scripts": {
+    "dev:backend": "npm --prefix backend dev",
+    "dev:frontend": "npm --prefix frontend dev",
+    "build:frontend": "npm --prefix frontend build",
+    "start:backend": "npm --prefix backend start"
+  }
+}
