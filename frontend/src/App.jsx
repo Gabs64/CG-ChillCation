@@ -62,9 +62,9 @@ export default function App() {
         <Route path="/" element={<GuestLayout currentUser={currentUser} />} />
         <Route path="/guest" element={<GuestLayout currentUser={currentUser} />} />
 
-        {/* Secret Non-Public Administrative Entry Path (FSD v2.0 Section 45, 46, 47, 50) */}
+        {/* Administrative Login Route */}
         <Route
-          path="/portal-access-8f3k29x7-admin-secure"
+          path="/login"
           element={
             <LoginPage
               onLoginSuccess={handleLoginSuccess}
@@ -72,15 +72,16 @@ export default function App() {
             />
           }
         />
+
+        {/* Secret Non-Public Administrative Entry Path (Redirects to /login) */}
+        <Route
+          path="/portal-access-8f3k29x7-admin-secure"
+          element={<Navigate to="/login" replace />}
+        />
         {secretAdminPath !== 'portal-access-8f3k29x7-admin-secure' && (
           <Route
             path={`/${secretAdminPath}`}
-            element={
-              <LoginPage
-                onLoginSuccess={handleLoginSuccess}
-                currentUser={currentUser}
-              />
-            }
+            element={<Navigate to="/login" replace />}
           />
         )}
 
@@ -118,7 +119,7 @@ export default function App() {
           }
         />
 
-        {/* Fallback Catch-all: Public unauthorized paths redirect to Home (Section 48) */}
+        {/* Fallback Catch-all: Public unauthorized paths redirect to Home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
