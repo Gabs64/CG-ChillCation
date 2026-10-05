@@ -1,72 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Users, MapPin, Star, MessageCircle, ArrowRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Users, MapPin, Star, MessageCircle, ArrowRight, Sparkles, Heart, QrCode, ExternalLink, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import RoomCard from './RoomCard';
 
 const HERO_SLIDES = [
   {
     image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=2000&q=85',
     title: 'CG CHILLCATION',
-    subtitle: 'YOUR UNFORGETTABLE GETAWAY'
+    subtitle: 'YOUR UNFORGETTABLE GETAWAY & SANCTUARY'
   },
   {
     image: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=2000&q=85',
-    title: 'CG CHILLCATION',
-    subtitle: 'MINIMALIST LUXURY & TRANQUIL SANCTUARY'
+    title: 'MINIMALIST LUXURY',
+    subtitle: 'BESPOKE 35SQM SUITES IN ANTIPOLO & CAINTA'
   },
   {
     image: 'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=2000&q=85',
-    title: 'CG CHILLCATION',
-    subtitle: 'BESPOKE SUITES IN ANTIPOLO & CAINTA'
+    title: 'SEAMLESS BOOKING',
+    subtitle: 'INSTANT QR CHECK-IN & DEDICATED SUPPORT'
   }
 ];
 
-export default function GuestHome({ onSelectRoom }) {
+export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlist = [], onToggleWishlist }) {
   const [rooms, setRooms] = useState([]);
-  const [selectedLocation, setSelectedLocation] = useState('All');
+  const [selectedFilter, setSelectedFilter] = useState('All'); // 'All', 'Featured', 'Antipolo', 'Cainta'
   const [isLoading, setIsLoading] = useState(true);
-  const [reviews, setReviews] = useState([]);
+  const [guestExperiences, setGuestExperiences] = useState([]);
   const [currentSlide, setCurrentSlide] = useState(0);
 
   // Search Bar State
-  const [arrivalDate, setArrivalDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  });
-  const [departureDate, setDepartureDate] = useState(() => {
-    const tomorrow = new Date(Date.now() + 86400000);
-    return tomorrow.toISOString().split('T')[0];
-  });
+  const [arrivalDate, setArrivalDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [departureDate, setDepartureDate] = useState(() => new Date(Date.now() + 86400000).toISOString().split('T')[0]);
   const [guestCount, setGuestCount] = useState('2');
   const [searchLocation, setSearchLocation] = useState('All');
 
   useEffect(() => {
-    fetchRooms(selectedLocation);
-  }, [selectedLocation]);
+    fetchRooms();
+    fetchGuestExperiences();
+  }, [selectedFilter]);
 
-  useEffect(() => {
-    fetchReviews();
-  }, []);
-
-  // Auto slide banner
+  // Auto Hero Slider
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
-    }, 6000);
+    }, 6500);
     return () => clearInterval(timer);
   }, []);
 
-  const handlePrevSlide = () => {
-    setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length);
-  };
-
-  const handleNextSlide = () => {
-    setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length);
-  };
-
-  const fetchRooms = async (location) => {
+  const fetchRooms = async () => {
     setIsLoading(true);
     try {
-      const url = location === 'All' ? '/api/rooms' : `/api/rooms?location=${encodeURIComponent(location)}`;
+      let url = '/api/rooms';
+      if (selectedFilter === 'Featured') {
+        url = '/api/rooms?featured=true';
+      } else if (selectedFilter === 'Antipolo' || selectedFilter === 'Cainta') {
+        url = `/api/rooms?location=${encodeURIComponent(selectedFilter)}`;
+      }
+
       const res = await fetch(url);
       const data = await res.json();
       if (data.rooms) {
@@ -79,279 +68,343 @@ export default function GuestHome({ onSelectRoom }) {
     }
   };
 
-  const fetchReviews = async () => {
+  const fetchGuestExperiences = async () => {
     try {
-      const res = await fetch('/api/reviews');
+      const res = await fetch('/api/guest-experiences');
       const data = await res.json();
-      if (data.reviews) {
-        setReviews(data.reviews);
+      if (data.experiences) {
+        setGuestExperiences(data.experiences);
       }
     } catch (err) {
-      console.error('Failed to load reviews:', err);
+      console.error('Failed to load guest experiences:', err);
     }
   };
 
-  const handleSearchBookNow = (e) => {
+  const handleSearch = (e) => {
     e.preventDefault();
-    if (searchLocation !== selectedLocation) {
-      setSelectedLocation(searchLocation);
+    if (searchLocation !== 'All') {
+      setSelectedFilter(searchLocation);
     }
-    const roomsSection = document.getElementById('rooms-section');
-    if (roomsSection) {
-      roomsSection.scrollIntoView({ behavior: 'smooth' });
-    }
+    const section = document.getElementById('rooms-section');
+    if (section) section.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="space-y-16 pb-24 -mt-2">
+    <div className="space-y-16 pb-16">
       
-      {/* 1. HERO BANNER SECTION WITH INTEGRATED SEARCH BAR */}
-      <section className="relative rounded-3xl overflow-hidden liquid-glass border border-white/15 shadow-2xl">
-        {/* Banner Images Carousel */}
-        <div className="relative h-[460px] sm:h-[540px] lg:h-[580px] w-full overflow-hidden bg-black">
-          {HERO_SLIDES.map((slide, idx) => (
-            <div
-              key={idx}
-              className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-                idx === currentSlide ? 'opacity-100 scale-100' : 'opacity-0 scale-105 pointer-events-none'
-              }`}
-            >
-              <img
-                src={slide.image}
-                alt={slide.subtitle}
-                className="w-full h-full object-cover brightness-[0.75] contrast-[1.05]"
+      {/* ================= 1. HERO CAROUSEL ================= */}
+      <div className="relative h-[480px] sm:h-[540px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+        {HERO_SLIDES.map((slide, idx) => (
+          <div
+            key={idx}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+              currentSlide === idx ? 'opacity-100 z-10' : 'opacity-0 z-0'
+            }`}
+          >
+            <img
+              src={slide.image}
+              alt={slide.title}
+              className="w-full h-full object-cover grayscale-[10%]"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-black/30" />
+            
+            <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-12 max-w-3xl space-y-3 z-20">
+              <span className="inline-flex items-center space-x-2 text-xs font-mono font-bold tracking-widest text-zinc-300 uppercase px-3 py-1 rounded-full bg-black/60 border border-white/15 backdrop-blur-md w-fit">
+                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                <span>G's Luxury Booking Experience v2.0</span>
+              </span>
+
+              <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-none uppercase">
+                {slide.title}
+              </h1>
+
+              <p className="text-xs sm:text-sm text-zinc-300 tracking-wider font-mono">
+                {slide.subtitle}
+              </p>
+
+              <div className="pt-2 flex flex-wrap gap-3">
+                <a
+                  href="#rooms-section"
+                  className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 shadow-lg"
+                >
+                  <span>Explore All Suites</span>
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+
+                <button
+                  onClick={onOpenExperienceModal}
+                  className="px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all flex items-center space-x-2"
+                >
+                  <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                  <span>Guest Reviews</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+
+        {/* Slide Controls */}
+        <div className="absolute bottom-6 right-6 z-30 flex items-center space-x-2">
+          <button
+            onClick={() => setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
+            className="p-2.5 rounded-full bg-black/60 hover:bg-white text-white hover:text-black border border-white/20 backdrop-blur-md transition-all"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <div className="flex space-x-1.5 px-2">
+            {HERO_SLIDES.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentSlide(i)}
+                className={`h-1.5 rounded-full transition-all ${
+                  currentSlide === i ? 'w-6 bg-white' : 'w-2 bg-white/40'
+                }`}
               />
-              {/* Dark Gradient Overlay for optimal contrast and mood */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-black/40 to-black/30" />
-            </div>
-          ))}
-
-          {/* Left Arrow Button */}
+            ))}
+          </div>
           <button
-            onClick={handlePrevSlide}
-            aria-label="Previous Slide"
-            className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full liquid-glass border border-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all duration-300 shadow-xl"
+            onClick={() => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)}
+            className="p-2.5 rounded-full bg-black/60 hover:bg-white text-white hover:text-black border border-white/20 backdrop-blur-md transition-all"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronRight className="w-4 h-4" />
           </button>
-
-          {/* Right Arrow Button */}
-          <button
-            onClick={handleNextSlide}
-            aria-label="Next Slide"
-            className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full liquid-glass border border-white/20 text-white flex items-center justify-center hover:bg-white hover:text-black transition-all duration-300 shadow-xl"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-
-          {/* Centered Hero Typography */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-4 pb-20 sm:pb-24 z-10">
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-white tracking-widest uppercase drop-shadow-2xl font-sans">
-              {HERO_SLIDES[currentSlide].title}
-            </h1>
-            <p className="text-xs sm:text-sm lg:text-base font-semibold text-zinc-300 tracking-[0.25em] uppercase mt-3 drop-shadow-md">
-              {HERO_SLIDES[currentSlide].subtitle}
-            </p>
-          </div>
-
-          {/* Floating Booking Search Bar Overlaid at Bottom of Hero */}
-          <div className="absolute bottom-4 sm:bottom-6 inset-x-3 sm:inset-x-6 lg:inset-x-12 z-20">
-            <form
-              onSubmit={handleSearchBookNow}
-              className="liquid-glass border border-white/20 rounded-2xl p-2.5 sm:p-3 shadow-2xl backdrop-blur-2xl grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 items-center"
-            >
-              {/* Arrival */}
-              <div className="bg-black/60 border border-white/10 rounded-xl px-3.5 py-2 flex flex-col justify-center">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Arrival</span>
-                <div className="flex items-center space-x-2 mt-0.5">
-                  <input
-                    type="date"
-                    value={arrivalDate}
-                    onChange={(e) => setArrivalDate(e.target.value)}
-                    className="bg-transparent text-white text-xs font-semibold focus:outline-none w-full cursor-pointer [color-scheme:dark]"
-                  />
-                  <Calendar className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                </div>
-              </div>
-
-              {/* Departure */}
-              <div className="bg-black/60 border border-white/10 rounded-xl px-3.5 py-2 flex flex-col justify-center">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Departure</span>
-                <div className="flex items-center space-x-2 mt-0.5">
-                  <input
-                    type="date"
-                    value={departureDate}
-                    onChange={(e) => setDepartureDate(e.target.value)}
-                    className="bg-transparent text-white text-xs font-semibold focus:outline-none w-full cursor-pointer [color-scheme:dark]"
-                  />
-                  <Calendar className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                </div>
-              </div>
-
-              {/* Guests */}
-              <div className="bg-black/60 border border-white/10 rounded-xl px-3.5 py-2 flex flex-col justify-center">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Guests</span>
-                <div className="flex items-center space-x-2 mt-0.5">
-                  <Users className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                  <select
-                    value={guestCount}
-                    onChange={(e) => setGuestCount(e.target.value)}
-                    className="bg-transparent text-white text-xs font-semibold focus:outline-none w-full cursor-pointer [color-scheme:dark]"
-                  >
-                    <option value="1" className="bg-[#09090b] text-white">1 guest</option>
-                    <option value="2" className="bg-[#09090b] text-white">2 guests</option>
-                    <option value="3" className="bg-[#09090b] text-white">3 guests</option>
-                    <option value="4" className="bg-[#09090b] text-white">4 guests</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Location */}
-              <div className="bg-black/60 border border-white/10 rounded-xl px-3.5 py-2 flex flex-col justify-center">
-                <span className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Location</span>
-                <div className="flex items-center space-x-2 mt-0.5">
-                  <MapPin className="w-3.5 h-3.5 text-zinc-400 flex-shrink-0" />
-                  <select
-                    value={searchLocation}
-                    onChange={(e) => setSearchLocation(e.target.value)}
-                    className="bg-transparent text-white text-xs font-semibold focus:outline-none w-full cursor-pointer [color-scheme:dark]"
-                  >
-                    <option value="All" className="bg-[#09090b] text-white">All Locations</option>
-                    <option value="Antipolo" className="bg-[#09090b] text-white">Antipolo (7 Suites)</option>
-                    <option value="Cainta" className="bg-[#09090b] text-white">Cainta (7 Suites)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Book Now Button */}
-              <button
-                type="submit"
-                className="h-[52px] w-full liquid-btn-primary rounded-xl font-extrabold text-xs uppercase tracking-widest flex items-center justify-center space-x-2 shadow-2xl hover:scale-[1.02] transition-transform duration-200"
-              >
-                <span>BOOK NOW</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
         </div>
-      </section>
+      </div>
 
-      {/* 2. EDITORIAL INTRO SECTION (Directly Below Hero - Matches 2nd photo) */}
-      <section className="liquid-glass rounded-3xl border border-white/15 p-8 sm:p-12 shadow-xl">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          {/* Left Column: Brand Name & 5-Star Rating */}
-          <div className="lg:col-span-4 space-y-3">
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-wider uppercase font-sans">
-              CG CHILLCATION
-            </h2>
-            <div className="flex items-center space-x-1">
-              {[1, 2, 3, 4, 5].map((s) => (
-                <Star key={s} className="w-4 h-4 fill-white text-white drop-shadow" />
-              ))}
-              <span className="text-xs font-mono font-bold text-zinc-300 ml-2">5.0 / 5.0</span>
-            </div>
-          </div>
-
-          {/* Right Column: Editorial Narrative */}
-          <div className="lg:col-span-8">
-            <p className="text-xs sm:text-sm text-brand-lightgray leading-relaxed font-sans">
-              Where Antipolo’s breezy hilltop serenity meets Cainta’s vibrant hospitality. CG Chillcation nestles in prime, secluded staycation hideaways designed for peaceful weekend getaways, private couple retreats, and comfortable workcations. Our exclusive suites capture the feel of a secret haven so completely, you'd never guess how close you are to the metro. Settle in, slow down, and immerse yourself in bespoke minimalist luxury with ultra high-speed Wi-Fi, ambient smart lighting, and instant QR verification.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. ROOMS SECTION */}
-      <section id="rooms-section" className="space-y-8">
-        {/* Section Header with 'Rooms' title on left and 'See All' / location filters on right */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
+      {/* ================= 2. SEARCH & DATE ESTIMATOR BAR ================= */}
+      <div className="liquid-glass border border-white/15 p-4 sm:p-6 rounded-3xl shadow-xl">
+        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-end">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-wide">Rooms</h2>
-            <p className="text-xs text-brand-lightgray mt-0.5">
-              Explore our collection of 35sqm minimalist suites
-            </p>
+            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+              Location
+            </label>
+            <div className="relative">
+              <select
+                value={searchLocation}
+                onChange={(e) => setSearchLocation(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40"
+              >
+                <option value="All">All Locations (Antipolo & Cainta)</option>
+                <option value="Antipolo">Antipolo City (7 Suites)</option>
+                <option value="Cainta">Cainta Rizal (7 Suites)</option>
+              </select>
+            </div>
           </div>
 
-          {/* Filter Pills & See All */}
-          <div className="flex items-center space-x-2 liquid-glass p-1.5 rounded-2xl border border-white/15 shadow-lg">
-            {['All', 'Antipolo', 'Cainta'].map((loc) => (
+          <div>
+            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+              Check-in Date
+            </label>
+            <input
+              type="date"
+              value={arrivalDate}
+              onChange={(e) => setArrivalDate(e.target.value)}
+              className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+              Check-out Date
+            </label>
+            <input
+              type="date"
+              value={departureDate}
+              onChange={(e) => setDepartureDate(e.target.value)}
+              className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
+            />
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              className="liquid-btn-primary w-full h-11 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2"
+            >
+              <span>Search Available Suites</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* ================= 3. ROOM INVENTORY GRID (Section 2, 3) ================= */}
+      <div id="rooms-section" className="space-y-6">
+        
+        {/* Section Header & Filter Tabs */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <span className="text-[11px] font-mono uppercase tracking-widest text-zinc-400 block">
+              Bespoke Accommodation
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+              Featured Suites & Inventory
+            </h2>
+          </div>
+
+          {/* Filter Pills */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto no-scrollbar py-1">
+            {['All', 'Featured', 'Antipolo', 'Cainta'].map((tab) => (
               <button
-                key={loc}
-                onClick={() => setSelectedLocation(loc)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold tracking-wider uppercase transition-all duration-300 ${
-                  selectedLocation === loc
-                    ? 'liquid-btn-primary shadow-md scale-105'
-                    : 'text-brand-lightgray hover:text-white hover:bg-white/5'
+                key={tab}
+                onClick={() => setSelectedFilter(tab)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                  selectedFilter === tab
+                    ? 'bg-white text-black shadow-md shadow-white/10 font-black'
+                    : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
                 }`}
               >
-                {loc}
+                {tab === 'Featured' && '✨ '}
+                {tab === 'All' ? 'All Suites' : tab}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Rooms Grid */}
+        {/* Room Cards Grid */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-96 liquid-glass rounded-3xl border border-white/10 animate-pulse" />
+            {[1, 2, 3, 4, 5, 6].map((n) => (
+              <div key={n} className="h-96 rounded-3xl bg-white/5 animate-pulse border border-white/10" />
             ))}
           </div>
         ) : rooms.length === 0 ? (
-          <div className="text-center py-16 liquid-glass rounded-3xl border border-white/10">
-            <p className="text-white font-bold">No suites found in this location.</p>
+          <div className="text-center py-16 p-8 rounded-3xl bg-black/40 border border-white/10">
+            <p className="text-zinc-300 font-bold">No suites found for selected filter.</p>
+            <button
+              onClick={() => setSelectedFilter('All')}
+              className="mt-3 px-4 py-2 rounded-xl bg-white text-black text-xs font-bold"
+            >
+              Reset Filters
+            </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-            {rooms.map((room) => (
-              <RoomCard
-                key={room.id}
-                room={room}
-                onSelect={onSelectRoom}
-              />
-            ))}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {rooms.map((room) => {
+              const isWishlisted = wishlist.some((w) => w.id === room.id);
+              return (
+                <RoomCard
+                  key={room.id}
+                  room={room}
+                  onSelect={onSelectRoom}
+                  isWishlisted={isWishlisted}
+                  onToggleWishlist={onToggleWishlist}
+                />
+              );
+            })}
           </div>
         )}
-      </section>
+      </div>
 
-      {/* 4. CUSTOMER REVIEWS SECTION */}
-      <section className="liquid-glass rounded-3xl border border-white/15 p-8 sm:p-12 space-y-8 shadow-2xl">
-        <div className="text-center max-w-xl mx-auto space-y-2">
-          <div className="flex justify-center space-x-1 text-white mb-2">
-            {[1, 2, 3, 4, 5].map((s) => (
-              <Star key={s} className="w-5 h-5 fill-white text-white drop-shadow-md" />
-            ))}
+      {/* ================= 4. GUEST EXPERIENCES & REVIEWS (Section 4, 8, 9) ================= */}
+      <div id="guest-experiences-section" className="space-y-6 pt-6">
+        
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/10">
+          <div>
+            <span className="text-[11px] font-mono uppercase tracking-widest text-zinc-400 block">
+              Verified Stays & Community
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center space-x-2">
+              <Star className="w-6 h-6 text-amber-400 fill-amber-400" />
+              <span>Guest Experiences</span>
+            </h2>
           </div>
-          <h3 className="text-2xl font-black text-white uppercase tracking-wider">Guest Experiences</h3>
-          <p className="text-xs text-brand-lightgray">Verified staycation reviews from CG Chillcation guests</p>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={onOpenExperienceModal}
+              className="liquid-btn-primary px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Leave a Review</span>
+            </button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {reviews.map((rev) => (
-            <div key={rev.id} className="liquid-glass-card p-6 rounded-2xl flex flex-col justify-between space-y-4">
-              <p className="text-xs text-brand-offwhite italic leading-relaxed">
-                "{rev.review}"
-              </p>
-              <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs">
-                <span className="font-bold text-white">— {rev.guest_name}</span>
-                <span className="text-brand-gray font-mono">★★★★★</span>
+        {/* Experience Cards Carousel / Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {guestExperiences.slice(0, 8).map((exp) => (
+            <div
+              key={exp.id}
+              className="p-5 rounded-2xl bg-black/40 border border-white/10 hover:border-white/20 transition-all flex flex-col justify-between space-y-3"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center space-x-1">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`w-3.5 h-3.5 ${
+                          s <= exp.rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-700'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="text-[10px] font-mono text-zinc-500">
+                    {exp.stay_date || 'Verified'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-zinc-300 italic line-clamp-3 leading-relaxed">
+                  "{exp.review_text}"
+                </p>
+              </div>
+
+              <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-black text-white block truncate">{exp.guest_name}</span>
+                  {exp.room_name && (
+                    <span className="text-[10px] font-mono text-zinc-400 block">{exp.room_name}</span>
+                  )}
+                </div>
+                <div className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center text-[10px] font-bold text-zinc-300">
+                  {exp.guest_name.charAt(0)}
+                </div>
               </div>
             </div>
           ))}
         </div>
-      </section>
 
-      {/* 5. FLOATING MESSENGER SUPPORT BUTTON */}
-      <a
-        href="https://m.me/cgchillcation"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 z-40 liquid-btn-primary px-6 py-3.5 rounded-full shadow-2xl flex items-center space-x-2.5 border border-white/40 group hover:scale-110 transition-all duration-300"
-        title="Contact Customer Support on Messenger"
-      >
-        <MessageCircle className="w-5 h-5 fill-black group-hover:rotate-12 transition-transform duration-300" />
-        <span className="text-xs font-extrabold tracking-wider uppercase">Messenger Support</span>
-      </a>
+        {/* Google Maps + Guest Experience CTA Banner (Section 8) */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-gradient-to-r from-zinc-900 via-zinc-900/90 to-black border border-white/15 flex flex-col lg:flex-row items-center justify-between gap-6 shadow-2xl">
+          <div className="space-y-1 text-center lg:text-left">
+            <h3 className="text-xl sm:text-2xl font-black text-white">Enjoyed Your Staycation?</h3>
+            <p className="text-xs sm:text-sm text-zinc-400 max-w-xl leading-relaxed">
+              Find our exact pin on Google Maps, leave your feedback, or get real-time directions to our Antipolo and Cainta luxury locations.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2.5 justify-center">
+            <button
+              onClick={onOpenExperienceModal}
+              className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white text-black hover:bg-zinc-200 transition-all flex items-center space-x-1.5 shadow-lg"
+            >
+              <Star className="w-3.5 h-3.5 fill-black" />
+              <span>Leave a Review</span>
+            </button>
+
+            <a
+              href="https://maps.google.com/?q=Antipolo+Rizal+CG+Chillcation"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all flex items-center space-x-1.5"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+              <span>View Antipolo Maps</span>
+            </a>
+
+            <a
+              href="https://maps.google.com/?q=Cainta+Rizal+CG+Chillcation"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/20 transition-all flex items-center space-x-1.5"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-emerald-400" />
+              <span>View Cainta Maps</span>
+            </a>
+          </div>
+        </div>
+
+      </div>
 
     </div>
   );

@@ -1,60 +1,114 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, CheckCircle, Clock, Filter, Search, UserCheck, ShieldCheck, MapPin, ChevronLeft, ChevronRight, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  Calendar, CheckCircle, Clock, Filter, Search, UserCheck, ShieldCheck, MapPin,
+  ChevronLeft, ChevronRight, RotateCcw, QrCode, LogIn, LogOut, DollarSign,
+  AlertCircle, ShieldAlert, ArrowRight, Eye, ExternalLink, Sparkles, Loader2, Check,
+  Camera, X, RefreshCw
+} from 'lucide-react';
+
+const formatDate = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function AdminDashboard({ token, currentUser }) {
-  const [activeTab, setActiveTab] = useState('checkins'); // 'checkins', 'calendar', 'bookings'
-  
-  // Today's check-ins state
-  const [checkins, setCheckins] = useState([]);
-  const [targetDate, setTargetDate] = useState(new Date().toISOString().split('T')[0]);
-  const [isLoadingCheckins, setIsLoadingCheckins] = useState(false);
+  // Navigation Tabs: 'daily_log', 'qr_scanner', 'calendar', 'bookings', 'room_status'
+  const [activeTab, setActiveTab] = useState('daily_log');
 
-  // Master calendar state
+  // Daily Arrivals & Departures State (Section 27, 28, 29, 57, 58)
+  const [selectedDate, setSelectedDate] = useState(() => formatDate(new Date()));
+  const [dailyData, setDailyData] = useState({ arrivals: [], departures: [], inHouse: [], summary: {} });
+  const [isLoadingDaily, setIsLoadingDaily] = useState(false);
+  const [dailySubTab, setDailySubTab] = useState('arrivals'); // 'arrivals', 'departures', 'in_house'
+
+  // QR Scanner State (Section 34, 35, 36, 37)
+  const [scannedRefInput, setScannedRefInput] = useState('');
+  const [scannedBooking, setScannedBooking] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [qrScanError, setQrScanError] = useState(null);
+  const [isSimulatingCamera, setIsSimulatingCamera] = useState(false);
+
+  // Master Calendar State (Section 38, 39, 40)
+  const [calendarView, setCalendarView] = useState('month'); // 'month', 'week', 'day'
   const [calendarRooms, setCalendarRooms] = useState([]);
   const [calendarBookings, setCalendarBookings] = useState([]);
   const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
-
-  // Month & Year state for Master Calendar
   const today = new Date();
   const [calendarYear, setCalendarYear] = useState(today.getFullYear());
-  const [calendarMonth, setCalendarMonth] = useState(today.getMonth()); // 0-indexed (0=Jan, 11=Dec)
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth()); // 0-11
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(today);
 
-  // All bookings state
+  // All Bookings State (Section 41, 42, 43, 44)
   const [allBookings, setAllBookings] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [bookingFilterDate, setBookingFilterDate] = useState('All'); // 'All', 'Today', 'Yesterday', 'Tomorrow', 'This Week', 'This Month'
+  const [bookingFilterLocation, setBookingFilterLocation] = useState('All');
+  const [bookingFilterStatus, setBookingFilterStatus] = useState('All');
+  const [bookingSearchQuery, setBookingSearchQuery] = useState('');
   const [isLoadingBookings, setIsLoadingBookings] = useState(false);
 
-  useEffect(() => {
-    if (activeTab === 'checkins') fetchCheckins();
-    if (activeTab === 'calendar') fetchCalendar();
-    if (activeTab === 'bookings') fetchAllBookings();
-  }, [activeTab, targetDate]);
+  // Room Status Page State (Section 24, 25)
+  const [roomStatuses, setRoomStatuses] = useState([]);
+  const [isLoadingRoomStatus, setIsLoadingRoomStatus] = useState(false);
 
-  const fetchCheckins = async () => {
-    setIsLoadingCheckins(true);
+  // Booking Detail Modal State
+  const [selectedBookingForModal, setSelectedBookingForModal] = useState(null);
+
+  // Auto-refresh when tabs change
+  useEffect(() => {
+    if (activeTab === 'daily_log') fetchDailyArrivalsDepartures(selectedDate);
+    if (activeTab === 'calendar') fetchCalendarData();
+    if (activeTab === 'bookings') fetchAllBookings();
+    if (activeTab === 'room_status') fetchRoomStatuses();
+  }, [activeTab, selectedDate]);
+
+  // 1. Fetch Daily Arrivals & Departures (Section 27-29)
+  const fetchDailyArrivalsDepartures = async (dateStr) => {
+    setIsLoadingDaily(true);
     try {
-      const res = await fetch(`/api/admin/checkins?date=${targetDate}`, {
+      const res = await fetch(`/api/admin/arrivals-departures?date=${dateStr}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.checkins) setCheckins(data.checkins);
+      if (data.success) {
+        setDailyData(data);
+      }
     } catch (err) {
       console.error(err);
     } finally {
-      setIsLoadingCheckins(false);
+      setIsLoadingDaily(false);
     }
   };
 
-  const fetchCalendar = async () => {
+  // Date Navigators
+  const handlePrevDay = () => {
+    const current = new Date(selectedDate);
+    const prev = new Date(current.getTime() - 86400000);
+    setSelectedDate(formatDate(prev));
+  };
+
+  const handleNextDay = () => {
+    const current = new Date(selectedDate);
+    const next = new Date(current.getTime() + 86400000);
+    setSelectedDate(formatDate(next));
+  };
+
+  const handleToday = () => {
+    setSelectedDate(formatDate(new Date()));
+  };
+
+  // 2. Fetch Master Calendar
+  const fetchCalendarData = async () => {
     setIsLoadingCalendar(true);
     try {
       const res = await fetch('/api/admin/calendar', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.rooms && data.bookings) {
-        setCalendarRooms(data.rooms);
-        setCalendarBookings(data.bookings);
+      if (data.success) {
+        setCalendarRooms(data.rooms || []);
+        setCalendarBookings(data.bookings || []);
       }
     } catch (err) {
       console.error(err);
@@ -63,14 +117,37 @@ export default function AdminDashboard({ token, currentUser }) {
     }
   };
 
+  // 3. Fetch All Bookings
   const fetchAllBookings = async () => {
     setIsLoadingBookings(true);
     try {
-      const res = await fetch('/api/admin/bookings', {
+      let queryParams = new URLSearchParams();
+      if (bookingFilterLocation !== 'All') queryParams.append('location', bookingFilterLocation);
+      if (bookingFilterStatus !== 'All') queryParams.append('status', bookingFilterStatus);
+      if (bookingSearchQuery) queryParams.append('search', bookingSearchQuery);
+
+      const res = await fetch(`/api/admin/bookings?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (data.bookings) setAllBookings(data.bookings);
+      if (data.success) {
+        let list = data.bookings || [];
+
+        // Apply client date preset filters if active
+        const todayStr = formatDate(new Date());
+        const yesterdayStr = formatDate(new Date(Date.now() - 86400000));
+        const tomorrowStr = formatDate(new Date(Date.now() + 86400000));
+
+        if (bookingFilterDate === 'Today') {
+          list = list.filter((b) => b.check_in === todayStr || b.check_out === todayStr);
+        } else if (bookingFilterDate === 'Yesterday') {
+          list = list.filter((b) => b.check_in === yesterdayStr || b.check_out === yesterdayStr);
+        } else if (bookingFilterDate === 'Tomorrow') {
+          list = list.filter((b) => b.check_in === tomorrowStr || b.check_out === tomorrowStr);
+        }
+
+        setAllBookings(list);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -78,6 +155,25 @@ export default function AdminDashboard({ token, currentUser }) {
     }
   };
 
+  // 4. Fetch Room Statuses
+  const fetchRoomStatuses = async () => {
+    setIsLoadingRoomStatus(true);
+    try {
+      const res = await fetch('/api/admin/room-status', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setRoomStatuses(data.roomStatuses || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingRoomStatus(false);
+    }
+  };
+
+  // Check-In / Check-Out Actions
   const handleUpdateCheckInStatus = async (bookingId, newStatus) => {
     try {
       const res = await fetch(`/api/admin/bookings/${bookingId}/checkin-status`, {
@@ -89,8 +185,82 @@ export default function AdminDashboard({ token, currentUser }) {
         body: JSON.stringify({ checkInStatus: newStatus })
       });
       if (res.ok) {
-        fetchCheckins();
+        fetchDailyArrivalsDepartures(selectedDate);
         fetchAllBookings();
+        fetchRoomStatuses();
+        if (selectedBookingForModal && selectedBookingForModal.id === bookingId) {
+          setSelectedBookingForModal((prev) => ({ ...prev, check_in_status: newStatus }));
+        }
+        if (scannedBooking && scannedBooking.id === bookingId) {
+          handleLookupQR(scannedBooking.reference_number);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Security Deposit Actions (Section 32, 33)
+  const handleSecurityDepositAction = async (bookingId, action, notes = '') => {
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/security-deposit`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ action, notes })
+      });
+      if (res.ok) {
+        fetchDailyArrivalsDepartures(selectedDate);
+        fetchAllBookings();
+        if (scannedBooking && scannedBooking.id === bookingId) {
+          handleLookupQR(scannedBooking.reference_number);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // QR Code Verification (Section 34-37)
+  const handleLookupQR = async (ref) => {
+    if (!ref || !ref.trim()) return;
+    setIsScanning(true);
+    setQrScanError(null);
+
+    try {
+      const cleanRef = ref.trim();
+      const res = await fetch(`/api/admin/qr/lookup/${encodeURIComponent(cleanRef)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setQrScanError(data.error || 'No matching booking found for this QR code.');
+        setScannedBooking(null);
+      } else {
+        setScannedBooking(data.booking);
+      }
+    } catch (err) {
+      setQrScanError('Failed to verify QR Code.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleUpdateRoomOperationalStatus = async (roomId, newStatus) => {
+    try {
+      const res = await fetch(`/api/admin/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        fetchRoomStatuses();
       }
     } catch (err) {
       console.error(err);
@@ -102,356 +272,899 @@ export default function AdminDashboard({ token, currentUser }) {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
-  // Generate calendar columns for selected month and year
-  const getCalendarDatesForMonth = (year, month) => {
-    const dates = [];
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    for (let day = 1; day <= daysInMonth; day++) {
-      const mm = String(month + 1).padStart(2, '0');
-      const dd = String(day).padStart(2, '0');
-      const dateStr = `${year}-${mm}-${dd}`;
-      const dayOfWeek = new Date(year, month, day).toLocaleDateString('en-US', { weekday: 'short' });
-      dates.push({ dateStr, dayNum: dd, dayOfWeek });
-    }
-    return dates;
-  };
-
-  const calendarDates = getCalendarDatesForMonth(calendarYear, calendarMonth);
-
-  const handlePrevMonth = () => {
-    if (calendarMonth === 0) {
-      setCalendarMonth(11);
-      setCalendarYear(calendarYear - 1);
-    } else {
-      setCalendarMonth(calendarMonth - 1);
-    }
-  };
-
-  const handleNextMonth = () => {
-    if (calendarMonth === 11) {
-      setCalendarMonth(0);
-      setCalendarYear(calendarYear + 1);
-    } else {
-      setCalendarMonth(calendarMonth + 1);
-    }
-  };
-
-  const handleResetToToday = () => {
-    const now = new Date();
-    setCalendarYear(now.getFullYear());
-    setCalendarMonth(now.getMonth());
-  };
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay();
 
   return (
-    <div className="space-y-8 pb-24">
+    <div className="space-y-6 pb-16">
       
-      {/* Dashboard Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-6">
-        <div>
-          <div className="flex items-center space-x-2">
-            <span className="text-xs font-mono uppercase tracking-widest text-brand-lightgray">STAFF & CUSTOMER SUPPORT PORTAL</span>
-            <span className="text-xs bg-white text-black px-2.5 py-0.5 rounded-full font-bold uppercase">
-              {currentUser?.role?.replace('_', ' ') || 'STAFF'}
-            </span>
-          </div>
-          <h1 className="text-3xl font-black text-white mt-1">Operational Control Center</h1>
-        </div>
-
-        {/* Tab Controls */}
-        <div className="flex items-center space-x-2 bg-brand-card p-1.5 rounded-2xl border border-brand-border">
+      {/* ================= PORTAL SUB-NAVIGATION TABS (Section 53, 54) ================= */}
+      <div className="flex items-center justify-between border-b border-white/10 pb-4 overflow-x-auto no-scrollbar gap-2">
+        <div className="flex items-center space-x-1 sm:space-x-2">
+          
           <button
-            onClick={() => setActiveTab('checkins')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
-              activeTab === 'checkins' ? 'bg-white text-black' : 'text-brand-lightgray hover:text-white'
+            onClick={() => setActiveTab('daily_log')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
+              activeTab === 'daily_log'
+                ? 'bg-white text-black shadow-lg shadow-white/10'
+                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
             }`}
           >
-            <UserCheck className="w-4 h-4" />
-            <span>Today's Check-ins</span>
+            <Clock className="w-3.5 h-3.5" />
+            <span>Daily Arrivals & Departures</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('qr_scanner')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
+              activeTab === 'qr_scanner'
+                ? 'bg-white text-black shadow-lg shadow-white/10'
+                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
+            }`}
+          >
+            <QrCode className="w-3.5 h-3.5" />
+            <span>QR Scanner</span>
           </button>
 
           <button
             onClick={() => setActiveTab('calendar')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
-              activeTab === 'calendar' ? 'bg-white text-black' : 'text-brand-lightgray hover:text-white'
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
+              activeTab === 'calendar'
+                ? 'bg-white text-black shadow-lg shadow-white/10'
+                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
             }`}
           >
-            <Calendar className="w-4 h-4" />
+            <Calendar className="w-3.5 h-3.5" />
             <span>Master Calendar</span>
           </button>
 
           <button
             onClick={() => setActiveTab('bookings')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
-              activeTab === 'bookings' ? 'bg-white text-black' : 'text-brand-lightgray hover:text-white'
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
+              activeTab === 'bookings'
+                ? 'bg-white text-black shadow-lg shadow-white/10'
+                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
             }`}
           >
-            <Clock className="w-4 h-4" />
-            <span>All Bookings</span>
+            <Search className="w-3.5 h-3.5" />
+            <span>All Bookings Log</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('room_status')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
+              activeTab === 'room_status'
+                ? 'bg-white text-black shadow-lg shadow-white/10'
+                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Room Status</span>
+          </button>
+
         </div>
       </div>
 
-      {/* TAB 1: TODAY'S CHECK-INS */}
-      {activeTab === 'checkins' && (
+      {/* ================= TAB 1: DAILY ARRIVALS & DEPARTURES LOG (Section 27-33, 57-58) ================= */}
+      {activeTab === 'daily_log' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between bg-brand-card p-4 rounded-2xl border border-brand-border">
-            <h3 className="text-lg font-bold text-white uppercase tracking-wider">Daily Arrival & Departure Log</h3>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs text-brand-lightgray uppercase">Select Date:</span>
+          
+          {/* Header & Easy Date Switcher Bar (Section 28, 29) */}
+          <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+            <div>
+              <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">
+                Asia/Manila System Date
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                Daily Arrival & Departure Management
+              </h2>
+            </div>
+
+            {/* Easy Date Switcher Controls */}
+            <div className="flex items-center space-x-2 self-start md:self-auto">
+              <button
+                onClick={handlePrevDay}
+                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 text-xs font-bold flex items-center space-x-1"
+                title="Previous Day"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Prev Day</span>
+              </button>
+
+              <button
+                onClick={handleToday}
+                className="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs uppercase tracking-wider shadow-md hover:bg-zinc-200"
+              >
+                Today
+              </button>
+
+              <button
+                onClick={handleNextDay}
+                className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 text-xs font-bold flex items-center space-x-1"
+                title="Next Day"
+              >
+                <span className="hidden sm:inline">Next Day</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
               <input
                 type="date"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-                className="bg-brand-black border border-brand-border rounded-xl p-2 text-xs text-white focus:outline-none focus:border-white"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs font-mono focus:outline-none focus:border-white/40"
               />
             </div>
           </div>
 
-          {isLoadingCheckins ? (
-            <div className="h-64 bg-brand-card rounded-2xl border border-brand-border animate-pulse" />
-          ) : checkins.length === 0 ? (
-            <div className="text-center py-16 bg-brand-card rounded-2xl border border-brand-border">
-              <UserCheck className="w-10 h-10 text-brand-gray mx-auto mb-2" />
-              <p className="text-white font-bold">No check-ins or departures scheduled for {targetDate}.</p>
+          {/* Quick Metrics Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div
+              onClick={() => setDailySubTab('arrivals')}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                dailySubTab === 'arrivals' ? 'bg-white/10 border-white shadow-lg' : 'bg-black/40 border-white/10'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Arrivals on {selectedDate}</span>
+                <LogIn className="w-4 h-4 text-emerald-400" />
+              </div>
+              <span className="text-2xl font-black text-white font-mono">
+                {dailyData.arrivals?.length || 0}
+              </span>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {checkins.map((b) => (
-                <div key={b.id} className="bg-brand-card rounded-2xl border border-brand-border p-5 space-y-4">
-                  <div className="flex items-center justify-between border-b border-brand-border pb-3">
-                    <div>
-                      <span className="text-xs font-bold text-white font-mono">{b.reference_number}</span>
-                      <h4 className="text-lg font-bold text-white mt-0.5">{b.room_name}</h4>
+
+            <div
+              onClick={() => setDailySubTab('departures')}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                dailySubTab === 'departures' ? 'bg-white/10 border-white shadow-lg' : 'bg-black/40 border-white/10'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Departures on {selectedDate}</span>
+                <LogOut className="w-4 h-4 text-rose-400" />
+              </div>
+              <span className="text-2xl font-black text-white font-mono">
+                {dailyData.departures?.length || 0}
+              </span>
+            </div>
+
+            <div
+              onClick={() => setDailySubTab('in_house')}
+              className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                dailySubTab === 'in_house' ? 'bg-white/10 border-white shadow-lg' : 'bg-black/40 border-white/10'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Currently In-House</span>
+                <UserCheck className="w-4 h-4 text-blue-400" />
+              </div>
+              <span className="text-2xl font-black text-white font-mono">
+                {dailyData.inHouse?.length || 0}
+              </span>
+            </div>
+          </div>
+
+          {/* List Table */}
+          <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-white/10">
+              <h3 className="text-base font-black text-white uppercase tracking-wide">
+                {dailySubTab === 'arrivals' && `Scheduled Arrivals for ${selectedDate}`}
+                {dailySubTab === 'departures' && `Scheduled Departures for ${selectedDate}`}
+                {dailySubTab === 'in_house' && 'Active In-House Guests'}
+              </h3>
+              <span className="text-xs font-mono text-zinc-400">
+                Auto-synced with SQLite &bull; Asia/Manila Time
+              </span>
+            </div>
+
+            {isLoadingDaily ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-400" />
+              </div>
+            ) : (
+              (() => {
+                const list = dailySubTab === 'arrivals'
+                  ? dailyData.arrivals
+                  : dailySubTab === 'departures'
+                  ? dailyData.departures
+                  : dailyData.inHouse;
+
+                if (!list || list.length === 0) {
+                  return (
+                    <div className="text-center py-12 text-zinc-500 text-xs italic">
+                      No bookings recorded for this category on {selectedDate}.
                     </div>
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-brand-black border border-brand-border text-brand-lightgray">
-                      {b.location}
+                  );
+                }
+
+                return (
+                  <div className="space-y-3">
+                    {list.map((b) => (
+                      <div
+                        key={b.id}
+                        className="p-4 rounded-2xl bg-black/60 border border-white/10 hover:border-white/20 transition-all flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+                      >
+                        <div className="space-y-1 min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-sm font-black text-white">{b.room_name}</span>
+                            <span className="text-xs text-zinc-400 font-mono">({b.location})</span>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-zinc-200 border border-white/15">
+                              {b.reference_number}
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase border ${
+                              b.check_in_status === 'CHECKED_IN'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : b.check_in_status === 'CHECKED_OUT'
+                                ? 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30'
+                                : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                            }`}>
+                              {b.check_in_status}
+                            </span>
+                          </div>
+
+                          <div className="text-xs text-zinc-300 flex flex-wrap gap-x-4 gap-y-1">
+                            <span><strong>Guest:</strong> {b.guest_name} ({b.guest_count} pax)</span>
+                            <span><strong>Phone:</strong> {b.contact_number}</span>
+                            <span><strong>Vehicle:</strong> {b.vehicle}</span>
+                            <span><strong>Stay:</strong> {b.check_in} &rarr; {b.check_out}</span>
+                          </div>
+
+                          {/* Security Deposit Badge (Section 31) */}
+                          <div className="pt-1 flex items-center space-x-2 text-[11px] font-mono">
+                            <span className="text-zinc-400">Security Deposit (₱1,000):</span>
+                            <span className={`px-2 py-0.5 rounded-full font-bold uppercase border ${
+                              b.deposit_status === 'PAID'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                : b.deposit_status === 'REFUNDED'
+                                ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                                : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                            }`}>
+                              {b.deposit_status || 'PENDING'}
+                            </span>
+                            {b.deposit_paid_by && (
+                              <span className="text-zinc-500">Paid to: {b.deposit_paid_by}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Operational Action Buttons (Section 32, 33, 57, 58) */}
+                        <div className="flex flex-wrap items-center gap-2 self-end lg:self-auto flex-shrink-0">
+                          
+                          {/* Deposit Confirmation Button */}
+                          {b.deposit_status !== 'PAID' && b.deposit_status !== 'REFUNDED' && (
+                            <button
+                              onClick={() => handleSecurityDepositAction(b.id, 'CONFIRM_PAYMENT')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold uppercase bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 transition-all flex items-center space-x-1"
+                            >
+                              <ShieldCheck className="w-3.5 h-3.5" />
+                              <span>Confirm Deposit</span>
+                            </button>
+                          )}
+
+                          {/* Deposit Refund Button */}
+                          {b.deposit_status === 'PAID' && (
+                            <button
+                              onClick={() => handleSecurityDepositAction(b.id, 'MARK_REFUNDED')}
+                              className="px-3 py-1.5 rounded-xl text-xs font-bold uppercase bg-blue-500/10 hover:bg-blue-500/20 text-blue-300 border border-blue-500/30 transition-all flex items-center space-x-1"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              <span>Mark Deposit Refunded</span>
+                            </button>
+                          )}
+
+                          {/* Check-In Action Button */}
+                          {b.check_in_status === 'NOT_CHECKED_IN' && (
+                            <button
+                              onClick={() => handleUpdateCheckInStatus(b.id, 'CHECKED_IN')}
+                              className="liquid-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase flex items-center space-x-1 shadow-md"
+                            >
+                              <LogIn className="w-3.5 h-3.5" />
+                              <span>Mark Check-In</span>
+                            </button>
+                          )}
+
+                          {/* Check-Out Action Button */}
+                          {b.check_in_status === 'CHECKED_IN' && (
+                            <button
+                              onClick={() => handleUpdateCheckInStatus(b.id, 'CHECKED_OUT')}
+                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 transition-all flex items-center space-x-1"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              <span>Mark Check-Out</span>
+                            </button>
+                          )}
+
+                          <button
+                            onClick={() => setSelectedBookingForModal(b)}
+                            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-xs"
+                            title="View Full Breakdown Snapshot"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* ================= TAB 2: QR CODE SCANNER (Section 34-37) ================= */}
+      {activeTab === 'qr_scanner' && (
+        <div className="space-y-6 max-w-3xl mx-auto">
+          
+          <div className="p-6 rounded-3xl liquid-glass border border-white/15 text-center space-y-4 shadow-xl">
+            <div className="w-12 h-12 rounded-2xl bg-white text-black flex items-center justify-center mx-auto shadow-lg">
+              <QrCode className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-white">Staff QR Code Scanner</h2>
+              <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
+                Scan the guest's digital booking voucher QR code or enter their reference number to execute instant check-in, check-out, and deposit validation.
+              </p>
+            </div>
+
+            {/* Reference Input Bar & Simulated Scanner */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleLookupQR(scannedRefInput);
+              }}
+              className="flex gap-2 max-w-md mx-auto"
+            >
+              <input
+                type="text"
+                placeholder="Scan or type Reference (e.g. CGC-20261006-1001)"
+                value={scannedRefInput}
+                onChange={(e) => setScannedRefInput(e.target.value)}
+                className="flex-1 h-12 px-4 rounded-xl bg-black/80 border border-white/20 text-white text-xs font-mono uppercase focus:outline-none focus:border-white/50"
+              />
+              <button
+                type="submit"
+                disabled={isScanning}
+                className="liquid-btn-primary px-5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5"
+              >
+                {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                <span>Verify</span>
+              </button>
+            </form>
+
+            {/* Quick Demo QR Links */}
+            <div className="pt-2 flex flex-wrap justify-center gap-2 text-xs">
+              <span className="text-zinc-500 font-mono text-[11px] self-center">Sample QRs:</span>
+              <button
+                onClick={() => {
+                  setScannedRefInput('CGC-20261006-1001');
+                  handleLookupQR('CGC-20261006-1001');
+                }}
+                className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 font-mono text-[11px] border border-white/10"
+              >
+                CGC-20261006-1001 (Room 01)
+              </button>
+              <button
+                onClick={() => {
+                  setScannedRefInput('CGC-20261006-1002');
+                  handleLookupQR('CGC-20261006-1002');
+                }}
+                className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 font-mono text-[11px] border border-white/10"
+              >
+                CGC-20261006-1002 (Room 08)
+              </button>
+            </div>
+          </div>
+
+          {qrScanError && (
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{qrScanError}</span>
+            </div>
+          )}
+
+          {/* QR Scanned Booking Result Display (Section 37) */}
+          {scannedBooking && (
+            <div className="p-6 rounded-3xl bg-black/60 border border-white/15 space-y-5 animate-fade-in shadow-2xl">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-white/10">
+                <div>
+                  <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-widest block">Verified Booking</span>
+                  <span className="text-lg font-mono font-black text-white">{scannedBooking.reference_number}</span>
+                </div>
+
+                <div className="flex items-center space-x-2">
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-white/10 text-white border border-white/20">
+                    {scannedBooking.check_in_status}
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    Payment: {scannedBooking.payment_status || 'PAID'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Guest & Stay Matrix */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                <div>
+                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Guest Name</span>
+                  <span className="font-bold text-white text-sm">{scannedBooking.guest_name}</span>
+                  <span className="text-zinc-500 block">{scannedBooking.guest_count} Guests</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Assigned Suite</span>
+                  <span className="font-bold text-white text-sm">{scannedBooking.room_name}</span>
+                  <span className="text-zinc-500 block">{scannedBooking.location}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Check-in</span>
+                  <span className="font-bold text-white text-sm">{scannedBooking.check_in}</span>
+                  <span className="text-zinc-500 block">From 2:00 PM</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Check-out</span>
+                  <span className="font-bold text-white text-sm">{scannedBooking.check_out}</span>
+                  <span className="text-zinc-500 block">By 12:00 PM</span>
+                </div>
+              </div>
+
+              {/* Security Deposit Verification Box */}
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">Refundable Security Deposit (₱1,000)</span>
+                  <span className="text-[11px] text-zinc-400 font-mono">
+                    Status: <strong className="text-amber-400 uppercase">{scannedBooking.securityDeposit?.payment_status || 'PENDING'}</strong>
+                  </span>
+                </div>
+
+                {scannedBooking.securityDeposit?.payment_status !== 'PAID' ? (
+                  <button
+                    onClick={() => handleSecurityDepositAction(scannedBooking.id, 'CONFIRM_PAYMENT')}
+                    className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-amber-400 text-black hover:bg-amber-300 transition-all shadow-md"
+                  >
+                    Confirm ₱1,000 Deposit
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => handleSecurityDepositAction(scannedBooking.id, 'MARK_REFUNDED')}
+                    className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-blue-500/20 text-blue-300 border border-blue-500/40 hover:bg-blue-500/30"
+                  >
+                    Mark ₱1,000 Refunded
+                  </button>
+                )}
+              </div>
+
+              {/* QR Check-In / Check-Out Execution Actions (Section 35, 36) */}
+              <div className="pt-3 border-t border-white/10 flex flex-wrap gap-3 justify-end">
+                {scannedBooking.check_in_status === 'NOT_CHECKED_IN' && (
+                  <button
+                    onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_IN')}
+                    className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center space-x-2 shadow-xl"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>MARK CHECK-IN</span>
+                  </button>
+                )}
+
+                {scannedBooking.check_in_status === 'CHECKED_IN' && (
+                  <button
+                    onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_OUT')}
+                    className="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider bg-rose-500 text-white hover:bg-rose-600 transition-all flex items-center space-x-2 shadow-xl"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>MARK CHECK-OUT</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ================= TAB 3: MASTER CALENDAR (Section 38, 39, 40) ================= */}
+      {activeTab === 'calendar' && (
+        <div className="space-y-6">
+          
+          {/* Calendar Header & Month Navigation */}
+          <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+            <div>
+              <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">
+                Visual Room Grid
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                Master Booking Calendar ({MONTH_NAMES[calendarMonth]} {calendarYear})
+              </h2>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  if (calendarMonth === 0) {
+                    setCalendarMonth(11);
+                    setCalendarYear((y) => y - 1);
+                  } else {
+                    setCalendarMonth((m) => m - 1);
+                  }
+                }}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => {
+                  const now = new Date();
+                  setCalendarMonth(now.getMonth());
+                  setCalendarYear(now.getFullYear());
+                }}
+                className="px-4 py-2 rounded-xl bg-white text-black text-xs font-bold uppercase tracking-wider"
+              >
+                This Month
+              </button>
+
+              <button
+                onClick={() => {
+                  if (calendarMonth === 11) {
+                    setCalendarMonth(0);
+                    setCalendarYear((y) => y + 1);
+                  } else {
+                    setCalendarMonth((m) => m + 1);
+                  }
+                }}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Calendar Grid */}
+          <div className="p-4 sm:p-6 rounded-3xl bg-black/60 border border-white/10 overflow-x-auto shadow-2xl">
+            <div className="min-w-[700px]">
+              
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 gap-2 mb-2 text-center text-xs font-mono font-bold text-zinc-400 uppercase">
+                <span>Sun</span>
+                <span>Mon</span>
+                <span>Tue</span>
+                <span>Wed</span>
+                <span>Thu</span>
+                <span>Fri</span>
+                <span>Sat</span>
+              </div>
+
+              {/* Day Cells */}
+              <div className="grid grid-cols-7 gap-2">
+                {/* Blank lead cells */}
+                {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                  <div key={`blank-${i}`} className="h-28 rounded-2xl bg-white/[0.02] border border-white/5 opacity-30" />
+                ))}
+
+                {/* Day boxes */}
+                {Array.from({ length: daysInMonth }).map((_, i) => {
+                  const dayNum = i + 1;
+                  const dateString = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                  const isCurrentDay = dateString === formatDate(new Date());
+
+                  // Filter bookings on this day
+                  const dayBookings = calendarBookings.filter((b) => {
+                    return b.check_in <= dateString && b.check_out >= dateString;
+                  });
+
+                  return (
+                    <div
+                      key={`day-${dayNum}`}
+                      className={`h-32 p-2 rounded-2xl border flex flex-col justify-between transition-all overflow-hidden ${
+                        isCurrentDay
+                          ? 'bg-white/10 border-white/40 ring-1 ring-white/30'
+                          : 'bg-black/40 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className={`text-xs font-mono font-bold ${isCurrentDay ? 'text-white font-black' : 'text-zinc-400'}`}>
+                          {dayNum}
+                        </span>
+                        {dayBookings.length > 0 && (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-zinc-300">
+                            {dayBookings.length} stay{dayBookings.length > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Booking Container Labels (Section 39) */}
+                      <div className="flex-1 overflow-y-auto space-y-1 my-1 no-scrollbar">
+                        {dayBookings.map((b) => (
+                          <button
+                            key={b.id}
+                            onClick={() => setSelectedBookingForModal(b)}
+                            className="w-full text-left p-1.5 rounded-lg bg-zinc-900/90 border border-white/15 hover:border-white text-[10px] text-zinc-200 block truncate transition-all shadow-sm"
+                          >
+                            <span className="font-bold text-white block truncate">{b.room_name}</span>
+                            <span className="text-zinc-400 block truncate">{b.guest_name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ================= TAB 4: ALL BOOKINGS LOG (Section 41-44) ================= */}
+      {activeTab === 'bookings' && (
+        <div className="space-y-6">
+          
+          {/* Filters Bar */}
+          <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 space-y-4 shadow-xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Audit Trail</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white">Historical Bookings Log</h2>
+              </div>
+
+              {/* Date Presets (Section 42) */}
+              <div className="flex items-center space-x-1 overflow-x-auto no-scrollbar py-1">
+                {['All', 'Today', 'Yesterday', 'Tomorrow'].map((preset) => (
+                  <button
+                    key={preset}
+                    onClick={() => {
+                      setBookingFilterDate(preset);
+                      fetchAllBookings();
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap ${
+                      bookingFilterDate === preset
+                        ? 'bg-white text-black font-black'
+                        : 'bg-white/5 text-zinc-400 hover:text-white border border-white/10'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input
+                type="text"
+                placeholder="Search guest name, ref, or email..."
+                value={bookingSearchQuery}
+                onChange={(e) => setBookingSearchQuery(e.target.value)}
+                className="h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-white/40"
+              />
+
+              <select
+                value={bookingFilterLocation}
+                onChange={(e) => setBookingFilterLocation(e.target.value)}
+                className="h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40"
+              >
+                <option value="All">All Locations</option>
+                <option value="Antipolo">Antipolo</option>
+                <option value="Cainta">Cainta</option>
+              </select>
+
+              <select
+                value={bookingFilterStatus}
+                onChange={(e) => setBookingFilterStatus(e.target.value)}
+                className="h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40"
+              >
+                <option value="All">All Statuses</option>
+                <option value="CONFIRMED">CONFIRMED</option>
+                <option value="CHECKED_IN">CHECKED_IN</option>
+                <option value="CHECKED_OUT">CHECKED_OUT</option>
+                <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Bookings Table */}
+          <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
+            {isLoadingBookings ? (
+              <div className="text-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-400" />
+              </div>
+            ) : allBookings.length === 0 ? (
+              <div className="text-center py-12 text-zinc-500 text-xs italic">
+                No matching bookings found.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {allBookings.map((b) => (
+                  <div
+                    key={b.id}
+                    className="p-4 rounded-2xl bg-black/60 border border-white/10 hover:border-white/20 transition-all flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                  >
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-black text-white">{b.room_name}</span>
+                        <span className="text-xs text-zinc-400 font-mono">({b.location})</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-zinc-300 border border-white/15">
+                          {b.reference_number}
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                          {b.booking_status}
+                        </span>
+                      </div>
+
+                      <div className="text-xs text-zinc-300 flex flex-wrap gap-x-4 gap-y-1">
+                        <span><strong>Guest:</strong> {b.guest_name}</span>
+                        <span><strong>Dates:</strong> {b.check_in} &rarr; {b.check_out}</span>
+                        <span><strong>Total:</strong> ₱{Number(b.total_amount || b.amount || 0).toLocaleString()}</span>
+                        <span><strong>Deposit:</strong> {b.deposit_status || 'PENDING'}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedBookingForModal(b)}
+                      className="liquid-btn-primary px-4 py-2 rounded-xl text-xs font-bold uppercase flex items-center space-x-1.5 self-end md:self-auto"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>View Details</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+        </div>
+      )}
+
+      {/* ================= TAB 5: ROOM STATUS PAGE (Section 24, 25) ================= */}
+      {activeTab === 'room_status' && (
+        <div className="space-y-6">
+          <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex items-center justify-between shadow-xl">
+            <div>
+              <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">
+                Operational Control
+              </span>
+              <h2 className="text-xl sm:text-2xl font-black text-white">
+                Live Suite Operational Status
+              </h2>
+            </div>
+            <button
+              onClick={fetchRoomStatuses}
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center space-x-1.5"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span>Refresh</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roomStatuses.map(({ room, currentBooking, operationalStatus }) => (
+              <div
+                key={room.id}
+                className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-4 shadow-xl flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-black text-white">{room.room_name}</h3>
+                    <span className="text-xs font-mono text-zinc-400">{room.location}</span>
+                  </div>
+
+                  {/* Physical Status Pill */}
+                  <div className="mb-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase border ${
+                      operationalStatus === 'AVAILABLE'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : operationalStatus === 'CHECKED_IN'
+                        ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                        : operationalStatus === 'MAINTENANCE'
+                        ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                        : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30'
+                    }`}>
+                      Status: {operationalStatus}
                     </span>
                   </div>
 
-                  <div className="space-y-1.5 text-xs text-brand-lightgray">
-                    <p>Guest: <strong className="text-white">{b.guest_name}</strong> ({b.guest_count} guests)</p>
-                    <p>Contact: <strong className="text-white">{b.contact_number}</strong></p>
-                    <p>Dates: <strong className="text-white">{b.check_in}</strong> to <strong className="text-white">{b.check_out}</strong></p>
-                    <p>Payment: <strong className="text-white">₱{b.amount ? b.amount.toLocaleString() : '0'} ({b.payment_method || 'QR Ph'})</strong></p>
-                    <p>Status: <strong className="text-emerald-400 uppercase">{b.check_in_status.replace('_', ' ')}</strong></p>
-                  </div>
-
-                  <div className="pt-3 border-t border-brand-border flex gap-2">
-                    {b.check_in_status !== 'CHECKED_IN' && (
-                      <button
-                        onClick={() => handleUpdateCheckInStatus(b.id, 'CHECKED_IN')}
-                        className="flex-1 py-2 rounded-xl bg-white text-black font-bold text-xs uppercase tracking-wider hover:bg-brand-offwhite transition-colors"
-                      >
-                        Mark Checked In
-                      </button>
-                    )}
-
-                    {b.check_in_status === 'CHECKED_IN' && (
-                      <button
-                        onClick={() => handleUpdateCheckInStatus(b.id, 'CHECKED_OUT')}
-                        className="flex-1 py-2 rounded-xl bg-brand-black text-white font-bold text-xs uppercase tracking-wider hover:bg-brand-border border border-brand-border transition-colors"
-                      >
-                        Mark Checked Out
-                      </button>
+                  {/* Current Active Booking Info */}
+                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1">
+                    <span className="text-[10px] text-zinc-400 uppercase font-mono block">Today's Occupancy</span>
+                    {currentBooking ? (
+                      <>
+                        <span className="font-bold text-white block">{currentBooking.guest_name}</span>
+                        <span className="text-zinc-400 block font-mono">{currentBooking.check_in} &rarr; {currentBooking.check_out}</span>
+                      </>
+                    ) : (
+                      <span className="text-zinc-500 italic block">No active guest staying today</span>
                     )}
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
 
-      {/* TAB 2: MASTER CALENDAR MATRIX */}
-      {activeTab === 'calendar' && (
-        <div className="space-y-6">
-          <div className="bg-brand-card p-6 rounded-3xl border border-brand-border space-y-6 overflow-x-auto">
-            
-            {/* Month & Year Navigation Control Bar */}
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
-              <div>
-                <h3 className="text-xl font-black text-white uppercase tracking-wider">14-Room Master Calendar Matrix</h3>
-                <p className="text-xs text-brand-lightgray mt-0.5">
-                  Showing occupancy for <strong className="text-white uppercase font-mono">{MONTH_NAMES[calendarMonth]} {calendarYear}</strong>
-                </p>
+                {/* Status Switcher Selector */}
+                <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                  <span className="text-zinc-400 font-mono">Set Operational Status:</span>
+                  <select
+                    value={operationalStatus}
+                    onChange={(e) => handleUpdateRoomOperationalStatus(room.id, e.target.value)}
+                    className="px-2 py-1 rounded-lg bg-black border border-white/20 text-white text-xs font-mono focus:outline-none"
+                  >
+                    <option value="AVAILABLE">AVAILABLE</option>
+                    <option value="CHECKED_IN">CHECKED_IN</option>
+                    <option value="CHECKED_OUT">CHECKED_OUT</option>
+                    <option value="MAINTENANCE">MAINTENANCE</option>
+                    <option value="UNAVAILABLE">UNAVAILABLE</option>
+                  </select>
+                </div>
               </div>
-
-              {/* Month / Year Selector Controls */}
-              <div className="flex items-center space-x-2 bg-brand-black p-1.5 rounded-2xl border border-white/15">
-                {/* Previous Month Button */}
-                <button
-                  onClick={handlePrevMonth}
-                  title="Previous Month"
-                  className="p-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/10 transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-
-                {/* Month Dropdown */}
-                <select
-                  value={calendarMonth}
-                  onChange={(e) => setCalendarMonth(Number(e.target.value))}
-                  className="bg-transparent text-xs font-bold uppercase text-white focus:outline-none cursor-pointer py-1 px-2"
-                >
-                  {MONTH_NAMES.map((name, idx) => (
-                    <option key={name} value={idx} className="bg-black text-white">
-                      {name}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Year Dropdown */}
-                <select
-                  value={calendarYear}
-                  onChange={(e) => setCalendarYear(Number(e.target.value))}
-                  className="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer py-1 px-2 border-l border-white/10"
-                >
-                  {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((yr) => (
-                    <option key={yr} value={yr} className="bg-black text-white">
-                      {yr}
-                    </option>
-                  ))}
-                </select>
-
-                {/* Next Month Button */}
-                <button
-                  onClick={handleNextMonth}
-                  title="Next Month"
-                  className="p-2 rounded-xl text-zinc-300 hover:text-white hover:bg-white/10 transition-colors border-l border-white/10"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-
-                {/* Reset to Today Button */}
-                <button
-                  onClick={handleResetToToday}
-                  title="Go to Today"
-                  className="p-2 rounded-xl text-white bg-white/10 hover:bg-white/20 transition-colors border-l border-white/10"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-            
-            {isLoadingCalendar ? (
-              <div className="h-64 animate-pulse bg-brand-black rounded-2xl" />
-            ) : (
-              <table className="w-full text-left border-collapse min-w-[900px]">
-                <thead>
-                  <tr className="border-b border-brand-border">
-                    <th className="p-3 text-xs font-bold text-brand-lightgray uppercase w-32 sticky left-0 bg-brand-card z-10 shadow-md">
-                      Room
-                    </th>
-                    {calendarDates.map((item) => {
-                      const todayStr = new Date().toISOString().split('T')[0];
-                      const isToday = item.dateStr === todayStr;
-                      return (
-                        <th
-                          key={item.dateStr}
-                          className={`p-2 text-center text-[10px] font-mono border-l border-brand-border min-w-[36px] ${
-                            isToday ? 'bg-white text-black font-black rounded-t-md' : 'text-brand-gray'
-                          }`}
-                        >
-                          <div className="leading-tight">{item.dayNum}</div>
-                          <div className="text-[9px] uppercase opacity-75">{item.dayOfWeek}</div>
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {calendarRooms.map((room) => (
-                    <tr key={room.id} className="border-b border-brand-border hover:bg-brand-black/40">
-                      <td className="p-3 text-xs font-bold text-white sticky left-0 bg-brand-card border-r border-brand-border flex items-center justify-between z-10">
-                        <span>{room.room_name}</span>
-                        <span className="text-[9px] text-brand-gray uppercase ml-1">({room.location[0]})</span>
-                      </td>
-
-                      {calendarDates.map((item) => {
-                        const booked = calendarBookings.find(
-                          (b) => b.room_id === room.id && item.dateStr >= b.check_in && item.dateStr < b.check_out
-                        );
-
-                        const todayStr = new Date().toISOString().split('T')[0];
-                        const isToday = item.dateStr === todayStr;
-
-                        return (
-                          <td key={item.dateStr} className={`p-1 border-l border-brand-border text-center ${isToday ? 'bg-white/5' : ''}`}>
-                            {booked ? (
-                              <div
-                                title={`${booked.guest_name} (${booked.reference_number}) - ${booked.booking_status}`}
-                                className="w-full py-2 bg-white text-black text-[9px] font-bold rounded-md uppercase tracking-tighter truncate px-1 shadow-sm hover:scale-105 transition-transform"
-                              >
-                                {booked.guest_name.split(' ')[0]}
-                              </div>
-                            ) : (
-                              <div className="w-full h-8 bg-brand-black/40 rounded-md border border-brand-border/40" />
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+            ))}
           </div>
         </div>
       )}
 
-      {/* TAB 3: ALL BOOKINGS TABLE */}
-      {activeTab === 'bookings' && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between bg-brand-card p-4 rounded-2xl border border-brand-border">
-            <h3 className="text-lg font-bold text-white uppercase tracking-wider">Complete Booking Registry</h3>
-            <div className="relative w-64">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-brand-gray" />
-              <input
-                type="text"
-                placeholder="Search reference or guest..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-brand-black border border-brand-border rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-white"
-              />
-            </div>
-          </div>
+      {/* ================= DETAIL MODAL (Preserved Snapshot Viewer - Section 40, 43, 44) ================= */}
+      {selectedBookingForModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
+          <div className="relative w-full max-w-xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 space-y-5 max-h-[90vh] flex flex-col">
+            
+            <button
+              onClick={() => setSelectedBookingForModal(null)}
+              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
 
-          <div className="bg-brand-card rounded-2xl border border-brand-border overflow-hidden">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-brand-black text-brand-lightgray uppercase border-b border-brand-border">
-                <tr>
-                  <th className="p-3">Ref Number</th>
-                  <th className="p-3">Room / Location</th>
-                  <th className="p-3">Guest Name</th>
-                  <th className="p-3">Dates</th>
-                  <th className="p-3">Amount</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Check-in Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-brand-border">
-                {allBookings
-                  .filter((b) => 
-                    b.reference_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    b.guest_name.toLowerCase().includes(searchQuery.toLowerCase())
-                  )
-                  .map((b) => (
-                    <tr key={b.id} className="hover:bg-brand-black/50">
-                      <td className="p-3 font-mono font-bold text-white">{b.reference_number}</td>
-                      <td className="p-3 font-semibold text-white">{b.room_name} ({b.location})</td>
-                      <td className="p-3 text-brand-offwhite">{b.guest_name}</td>
-                      <td className="p-3 text-brand-gray">{b.check_in} to {b.check_out}</td>
-                      <td className="p-3 font-bold text-white">₱{b.amount ? b.amount.toLocaleString() : '0'}</td>
-                      <td className="p-3">
-                        <span className="px-2 py-0.5 rounded-full font-bold bg-white text-black uppercase text-[10px]">
-                          {b.booking_status}
-                        </span>
-                      </td>
-                      <td className="p-3 text-brand-lightgray">{b.check_in_status.replace('_', ' ')}</td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            <div className="pb-3 border-b border-white/10">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block">Booking Snapshot</span>
+              <h3 className="text-xl font-black text-white">{selectedBookingForModal.reference_number}</h3>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar text-xs">
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Guest Name</span>
+                  <span className="font-bold text-white">{selectedBookingForModal.guest_name}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Suite & Location</span>
+                  <span className="font-bold text-white">{selectedBookingForModal.room_name} ({selectedBookingForModal.location})</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-in</span>
+                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_in}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-out</span>
+                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_out}</span>
+                </div>
+              </div>
+
+              {/* Financial Snapshot Breakdown */}
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                <span className="font-bold uppercase tracking-wider text-zinc-300 font-mono block">Financial Preservation Breakdown</span>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Room Rate ({selectedBookingForModal.nights || 1} nights):</span>
+                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.room_subtotal || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Inclusions Subtotal:</span>
+                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.inclusions_subtotal || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-emerald-400">
+                  <span>Refundable Security Deposit:</span>
+                  <span className="font-mono font-bold">₱1,000 ({selectedBookingForModal.deposit_status || 'PENDING'})</span>
+                </div>
+                <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-sm text-white">
+                  <span>Total Booking Amount:</span>
+                  <span className="font-mono">₱{Number(selectedBookingForModal.total_amount || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setSelectedBookingForModal(null)}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 uppercase tracking-wider"
+              >
+                Close
+              </button>
+            </div>
+
           </div>
         </div>
       )}

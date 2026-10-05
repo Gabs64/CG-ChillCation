@@ -9,6 +9,19 @@ import ProtectedRoute from './shared/ProtectedRoute';
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('cg_token') || '');
+  const [secretAdminPath, setSecretAdminPath] = useState('portal-access-8f3k29x7-admin-secure');
+
+  // Fetch configured secret portal path from public settings
+  useEffect(() => {
+    fetch('/api/settings/public')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.settings?.secretAdminPath) {
+          setSecretAdminPath(d.settings.secretAdminPath);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Restore user session if token exists
   useEffect(() => {
@@ -45,13 +58,13 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Dedicated Guest Routes */}
+        {/* Public Dedicated Guest Routes (Section 49, 55) */}
         <Route path="/" element={<GuestLayout currentUser={currentUser} />} />
         <Route path="/guest" element={<GuestLayout currentUser={currentUser} />} />
 
-        {/* Administrative Login Route */}
+        {/* Secret Non-Public Administrative Entry Path (FSD v2.0 Section 45, 46, 47, 50) */}
         <Route
-          path="/login"
+          path="/portal-access-8f3k29x7-admin-secure"
           element={
             <LoginPage
               onLoginSuccess={handleLoginSuccess}
@@ -59,8 +72,19 @@ export default function App() {
             />
           }
         />
+        {secretAdminPath !== 'portal-access-8f3k29x7-admin-secure' && (
+          <Route
+            path={`/${secretAdminPath}`}
+            element={
+              <LoginPage
+                onLoginSuccess={handleLoginSuccess}
+                currentUser={currentUser}
+              />
+            }
+          />
+        )}
 
-        {/* Dedicated Staff & Customer Support Route */}
+        {/* Dedicated Staff & Customer Support Protected Portal */}
         <Route
           path="/staff"
           element={
@@ -77,7 +101,7 @@ export default function App() {
           }
         />
 
-        {/* Dedicated Executive Owner Route */}
+        {/* Dedicated Executive Owner Protected Portal */}
         <Route
           path="/owner"
           element={
@@ -94,7 +118,7 @@ export default function App() {
           }
         />
 
-        {/* Fallback Catch-all Route */}
+        {/* Fallback Catch-all: Public unauthorized paths redirect to Home (Section 48) */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

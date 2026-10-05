@@ -45,6 +45,7 @@ export const all = (sql, params = []) => {
 };
 
 export const initDb = async () => {
+  // 1. Rooms Table (with v2.0 fields: is_featured, google_maps_url, updated_at)
   await run(`
     CREATE TABLE IF NOT EXISTS rooms (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -53,20 +54,64 @@ export const initDb = async () => {
       description TEXT NOT NULL,
       price_per_night REAL NOT NULL DEFAULT 2500,
       status TEXT NOT NULL DEFAULT 'AVAILABLE',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      is_featured INTEGER NOT NULL DEFAULT 0,
+      google_maps_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
+  // 2. Room Images Table (Multi-photo support)
   await run(`
     CREATE TABLE IF NOT EXISTS room_images (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       room_id INTEGER NOT NULL,
       image_url TEXT NOT NULL,
       display_order INTEGER NOT NULL DEFAULT 1,
+      is_primary INTEGER NOT NULL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
     )
   `);
 
+  // 3. Room-Specific Payment Methods
+  await run(`
+    CREATE TABLE IF NOT EXISTS room_payment_methods (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id INTEGER NOT NULL,
+      payment_method TEXT NOT NULL,
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 4. Inclusions Configuration Table
+  await run(`
+    CREATE TABLE IF NOT EXISTS inclusions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      price REAL NOT NULL DEFAULT 0,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 5. Rules and Policies Configuration Table
+  await run(`
+    CREATE TABLE IF NOT EXISTS policies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL,
+      display_order INTEGER NOT NULL DEFAULT 1,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 6. Bookings Table
   await run(`
     CREATE TABLE IF NOT EXISTS bookings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -87,6 +132,52 @@ export const initDb = async () => {
     )
   `);
 
+  // 7. Booking Inclusions Snapshot Table (Preserves price at time of booking)
+  await run(`
+    CREATE TABLE IF NOT EXISTS booking_inclusions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER NOT NULL,
+      inclusion_id INTEGER,
+      inclusion_name_snapshot TEXT NOT NULL,
+      price_snapshot REAL NOT NULL,
+      quantity INTEGER NOT NULL DEFAULT 1,
+      subtotal REAL NOT NULL,
+      FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 8. Booking Policy Acknowledgements
+  await run(`
+    CREATE TABLE IF NOT EXISTS booking_policy_acknowledgements (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER NOT NULL,
+      policy_id INTEGER,
+      policy_version TEXT,
+      acknowledged_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 9. Booking Payment Breakdown Snapshot Table
+  await run(`
+    CREATE TABLE IF NOT EXISTS booking_payment_breakdown (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER UNIQUE NOT NULL,
+      room_rate_snapshot REAL NOT NULL,
+      nights INTEGER NOT NULL,
+      room_subtotal REAL NOT NULL,
+      inclusions_subtotal REAL NOT NULL DEFAULT 0,
+      security_deposit REAL NOT NULL DEFAULT 1000,
+      other_charges REAL NOT NULL DEFAULT 0,
+      discount REAL NOT NULL DEFAULT 0,
+      total_amount REAL NOT NULL,
+      down_payment REAL NOT NULL,
+      remaining_balance REAL NOT NULL,
+      FOREIGN KEY (booking_id) REFERENCES bookings(id) ON DELETE CASCADE
+    )
+  `);
+
+  // 10. Payments Table
   await run(`
     CREATE TABLE IF NOT EXISTS payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -100,6 +191,23 @@ export const initDb = async () => {
     )
   `);
 
+  // 11. Security Deposits Tracking Table
+  await run(`
+    CREATE TABLE IF NOT EXISTS security_deposits (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER UNIQUE NOT NULL,
+      amount REAL NOT NULL DEFAULT 1000,
+      payment_status TEXT NOT NULL DEFAULT 'PENDING',
+      paid_at DATETIME,
+      paid_by TEXT,
+      refunded_at DATETIME,
+      refunded_by TEXT,
+      notes TEXT,
+      FOREIGN KEY (booking_id) REFERENCES bookings(id)
+    )
+  `);
+
+  // 12. Users Table
   await run(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -112,17 +220,49 @@ export const initDb = async () => {
     )
   `);
 
+  // 13. Guest Experiences / Reviews Table (v2.0 Approval Workflow: PENDING, APPROVED, DECLINED)
   await run(`
-    CREATE TABLE IF NOT EXISTS reviews (
+    CREATE TABLE IF NOT EXISTS guest_experiences (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      booking_id INTEGER,
       guest_name TEXT NOT NULL,
       rating INTEGER NOT NULL DEFAULT 5,
-      review TEXT NOT NULL,
-      display_status TEXT NOT NULL DEFAULT 'APPROVED',
+      review_text TEXT NOT NULL,
+      room_name TEXT,
+      stay_date TEXT,
+      photo_url TEXT,
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      reviewed_at DATETIME,
+      reviewed_by TEXT
+    )
+  `);
+
+  // 14. Audit Logs Table
+  await run(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_name TEXT NOT NULL,
+      user_role TEXT NOT NULL,
+      action TEXT NOT NULL,
+      target TEXT,
+      details TEXT,
+      previous_value TEXT,
+      new_value TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
+  // 15. System Settings Table
+  await run(`
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 16. Sheets Sync Log Table
   await run(`
     CREATE TABLE IF NOT EXISTS sheets_sync_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -133,5 +273,5 @@ export const initDb = async () => {
     )
   `);
 
-  console.log('Database tables initialized successfully.');
+  console.log('Database v2.0 tables initialized successfully.');
 };

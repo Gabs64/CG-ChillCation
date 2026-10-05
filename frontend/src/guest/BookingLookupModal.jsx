@@ -1,43 +1,44 @@
 import React, { useState } from 'react';
-import { X, Search, Calendar, User, Mail, MapPin, Loader2, QrCode, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Search, Calendar, User, Phone, Mail, Car, ShieldCheck, MapPin, QrCode, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
 import QRCode from 'qrcode';
 
-export default function BookingLookupModal({ onClose }) {
+export default function BookingLookupModal({ onClose, onOpenReviewModal }) {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [email, setEmail] = useState('');
+  const [booking, setBooking] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [booking, setBooking] = useState(null);
-  const [qrUrl, setQrUrl] = useState('');
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   const handleLookup = async (e) => {
     e.preventDefault();
-    if (!referenceNumber.trim() || !email.trim()) return;
-
-    setIsLoading(true);
     setError(null);
     setBooking(null);
+
+    if (!referenceNumber || !email) {
+      setError('Please provide both Booking Reference and Email.');
+      return;
+    }
+
+    setIsLoading(true);
 
     try {
       const res = await fetch(`/api/bookings/lookup?referenceNumber=${encodeURIComponent(referenceNumber.trim())}&email=${encodeURIComponent(email.trim())}`);
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Booking not found.');
+        setError(data.error || 'No matching booking found.');
       } else {
         setBooking(data.booking);
-
-        const securePayload = JSON.stringify({
-          ref: data.booking.reference_number,
-          guest: data.booking.guest_name,
-          room: data.booking.room_name,
-          paymentRef: data.booking.payment_reference
-        });
-        const url = await QRCode.toDataURL(securePayload, { margin: 2, width: 220 });
-        setQrUrl(url);
+        // Generate QR code for check-in
+        QRCode.toDataURL(data.booking.reference_number, {
+          width: 240,
+          margin: 2,
+          color: { dark: '#000000', light: '#ffffff' }
+        }).then(setQrCodeDataUrl).catch(console.error);
       }
     } catch (err) {
-      setError('Network error retrieving booking.');
+      setError('Failed to connect to booking verification system.');
     } finally {
       setIsLoading(false);
     }
@@ -45,117 +46,218 @@ export default function BookingLookupModal({ onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-xl liquid-glass border border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl my-8 animate-modal-pop">
+      <div className="relative w-full max-w-2xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 max-h-[90vh] flex flex-col">
         
-        {/* Top Header Bar with Clean Right Close Button */}
-        <div className="flex items-center justify-between pb-3 mb-6 border-b border-white/10">
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-brand-lightgray block font-bold">
-              CG CHILLCATION &bull; RETRIEVAL PORTAL
-            </span>
-            <h3 className="text-2xl font-black text-white mt-0.5">Retrieve Reservation</h3>
-          </div>
+        {/* Close Button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
+        >
+          <X className="w-5 h-5" />
+        </button>
 
-          <button
-            onClick={onClose}
-            className="p-2 rounded-full liquid-btn text-white hover:bg-white hover:text-black transition-colors flex-shrink-0"
-            title="Close modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
+        {/* Header */}
+        <div className="pb-4 border-b border-white/10 mb-6">
+          <h2 className="text-xl sm:text-2xl font-black text-white flex items-center space-x-2">
+            <Search className="w-6 h-6 text-zinc-300" />
+            <span>Find Your Reservation</span>
+          </h2>
+          <p className="text-xs text-zinc-400 font-mono mt-1">
+            Access your booking itinerary, payment breakdown, and check-in QR code.
+          </p>
         </div>
 
-        {/* Search Form */}
-        <form onSubmit={handleLookup} className="space-y-4 mb-6">
-          <div>
-            <label className="text-xs font-semibold text-brand-lightgray uppercase tracking-wider block mb-1.5">
-              Booking Reference Number
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. CGC-20260921-0001"
-              value={referenceNumber}
-              onChange={(e) => setReferenceNumber(e.target.value)}
-              className="w-full liquid-input rounded-xl p-3 text-white text-sm font-mono uppercase"
-            />
-          </div>
+        {/* Content Section */}
+        <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar">
+          
+          {/* Lookup Form */}
+          <form onSubmit={handleLookup} className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
+            <div>
+              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                Booking Reference *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. CGC-20261006-1001"
+                value={referenceNumber}
+                onChange={(e) => setReferenceNumber(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-white/40 font-mono uppercase"
+              />
+            </div>
 
-          <div>
-            <label className="text-xs font-semibold text-brand-lightgray uppercase tracking-wider block mb-1.5">
-              Email Address
-            </label>
-            <input
-              type="email"
-              required
-              placeholder="juan@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full liquid-input rounded-xl p-3 text-white text-sm"
-            />
-          </div>
+            <div>
+              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                Guest Email *
+              </label>
+              <input
+                type="email"
+                required
+                placeholder="juan@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs placeholder:text-zinc-600 focus:outline-none focus:border-white/40"
+              />
+            </div>
 
+            <div className="sm:col-span-2 pt-1 flex justify-end">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="liquid-btn-primary w-full sm:w-auto px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Searching...</span>
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Retrieve Booking</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+
+          {error && (
+            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Booking Found Details Display */}
+          {booking && (
+            <div className="space-y-5 animate-fade-in">
+              
+              {/* Header Card */}
+              <div className="p-5 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+                  <div>
+                    <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-widest block">Reference</span>
+                    <span className="text-base font-mono font-black text-white">{booking.reference_number}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase border ${
+                      booking.booking_status === 'CONFIRMED' || booking.booking_status === 'CHECKED_IN'
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+                    }`}>
+                      {booking.booking_status}
+                    </span>
+                    <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-white/10 text-white border border-white/20">
+                      {booking.check_in_status}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div>
+                    <span className="text-zinc-400 font-mono text-[10px] uppercase block">Room</span>
+                    <span className="font-bold text-white">{booking.room_name} ({booking.location})</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-mono text-[10px] uppercase block">Guest</span>
+                    <span className="font-bold text-white">{booking.guest_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-mono text-[10px] uppercase block">Check-in</span>
+                    <span className="font-bold text-white">{booking.check_in} (2:00 PM)</span>
+                  </div>
+                  <div>
+                    <span className="text-zinc-400 font-mono text-[10px] uppercase block">Check-out</span>
+                    <span className="font-bold text-white">{booking.check_out} (12:00 PM)</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* QR Code & Check-in Pass */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-2xl bg-white text-black text-center flex flex-col items-center justify-center space-y-2 shadow-xl">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-black font-mono">
+                    Check-in Pass QR
+                  </span>
+                  {qrCodeDataUrl ? (
+                    <img src={qrCodeDataUrl} alt="Check-in QR" className="w-36 h-36 mx-auto" />
+                  ) : (
+                    <div className="w-36 h-36 flex items-center justify-center">
+                      <QrCode className="w-8 h-8 animate-pulse text-zinc-400" />
+                    </div>
+                  )}
+                  <span className="text-[10px] font-mono text-zinc-700 font-bold">
+                    Present to staff upon arrival
+                  </span>
+                </div>
+
+                {/* Financial Breakdown Snapshot (Section 43, 44) */}
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col justify-between space-y-3">
+                  <div>
+                    <span className="text-xs font-bold text-zinc-300 uppercase font-mono tracking-wider block mb-2">
+                      Payment Breakdown
+                    </span>
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex justify-between text-zinc-400">
+                        <span>Room Rate ({booking.breakdown?.nights || 1} night):</span>
+                        <span className="text-white font-mono">₱{Number(booking.breakdown?.room_subtotal || booking.amount || 0).toLocaleString()}</span>
+                      </div>
+                      {booking.inclusions && booking.inclusions.length > 0 && (
+                        <div className="flex justify-between text-zinc-400">
+                          <span>Inclusions ({booking.inclusions.length}):</span>
+                          <span className="text-white font-mono">₱{Number(booking.breakdown?.inclusions_subtotal || 0).toLocaleString()}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-zinc-400">
+                        <span>Refundable Security Deposit:</span>
+                        <span className="text-emerald-400 font-mono">₱{Number(booking.securityDeposit?.amount || 1000).toLocaleString()}</span>
+                      </div>
+                      <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-sm text-white">
+                        <span>Total Amount:</span>
+                        <span className="font-mono">₱{Number(booking.breakdown?.total_amount || booking.amount || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-zinc-400 pt-1">
+                        <span>Payment Method:</span>
+                        <span className="text-white font-mono">{booking.payment_method || 'QR Ph'}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-zinc-400">
+                        <span>Deposit Status:</span>
+                        <span className="text-amber-400 font-mono font-bold uppercase">{booking.securityDeposit?.payment_status || 'PENDING'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {booking.google_maps_url && (
+                    <a
+                      href={booking.google_maps_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-zinc-300 hover:text-white flex items-center justify-center space-x-1.5 transition-colors"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Get Directions on Google Maps</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+        {/* Footer */}
+        <div className="pt-4 border-t border-white/10 flex justify-between items-center">
+          <span className="text-[11px] font-mono text-zinc-500">
+            CG Chillcation Reservation Desk
+          </span>
           <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full liquid-btn-primary py-3.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center space-x-2 shadow-lg"
+            onClick={onClose}
+            className="px-5 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white text-white hover:text-black border border-white/20 transition-all"
           >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-            <span>Find Booking</span>
+            Close
           </button>
-        </form>
-
-        {/* Error Banner */}
-        {error && (
-          <div className="p-4 rounded-xl bg-zinc-900 border border-white/20 text-white text-xs flex items-center space-x-2">
-            <AlertCircle className="w-4 h-4 text-white flex-shrink-0" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Found Booking Card */}
-        {booking && (
-          <div className="liquid-glass-card p-6 rounded-2xl space-y-4 animate-fade-in">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <div>
-                <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center space-x-1">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>{booking.booking_status}</span>
-                </span>
-                <h4 className="text-lg font-bold text-white mt-1">{booking.room_name} ({booking.location})</h4>
-              </div>
-              <span className="text-xs font-mono text-white bg-black/60 px-3 py-1 rounded-lg border border-white/10">
-                {booking.reference_number}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs text-brand-lightgray">
-              <div>
-                <span>Guest Name:</span>
-                <p className="text-white font-semibold">{booking.guest_name}</p>
-              </div>
-              <div>
-                <span>Guests / Vehicle:</span>
-                <p className="text-white font-semibold">{booking.guest_count} guest(s) / {booking.vehicle}</p>
-              </div>
-              <div>
-                <span>Check-in:</span>
-                <p className="text-white font-semibold">{booking.check_in}</p>
-              </div>
-              <div>
-                <span>Check-out:</span>
-                <p className="text-white font-semibold">{booking.check_out}</p>
-              </div>
-            </div>
-
-            {qrUrl && (
-              <div className="pt-4 border-t border-white/10 text-center">
-                <span className="text-xs text-brand-gray font-mono uppercase block mb-2">Digital Check-in QR Pass</span>
-                <img src={qrUrl} alt="QR Pass" className="w-36 h-36 mx-auto border border-white/20 rounded-2xl p-2 bg-white shadow-xl" />
-              </div>
-            )}
-          </div>
-        )}
+        </div>
 
       </div>
     </div>
