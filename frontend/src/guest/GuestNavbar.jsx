@@ -17,17 +17,9 @@ export default function GuestNavbar({ onOpenBookingsLookup, currentUser }) {
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white via-zinc-200 to-zinc-400 text-black flex items-center justify-center font-extrabold text-xl tracking-tighter shadow-lg shadow-white/15 group-hover:scale-105 transition-all duration-300 border border-white/40">
             CG
           </div>
-          <div>
-            <div className="flex items-center space-x-1.5">
-              <span className="text-base sm:text-lg font-black tracking-wider text-white uppercase block leading-none group-hover:text-zinc-200 transition-colors whitespace-nowrap">
-                CG Chillcation
-              </span>
-              <Sparkles className="w-3.5 h-3.5 text-white/70 animate-pulse flex-shrink-0" />
-            </div>
-            <span className="text-[10px] text-brand-lightgray tracking-widest block font-mono mt-0.5 uppercase whitespace-nowrap">
-              G'S BOOKING SYSTEM
-            </span>
-          </div>
+          <span className="text-base sm:text-lg font-black tracking-wider text-white uppercase block leading-none group-hover:text-zinc-200 transition-colors whitespace-nowrap">
+            CG Chillcation
+          </span>
         </Link>
 
         {/* Guest Exclusive Navigation Items */}

@@ -51,7 +51,7 @@ export default function BookingLookupModal({ onClose }) {
         <div className="flex items-center justify-between pb-3 mb-6 border-b border-white/10">
           <div>
             <span className="text-[10px] font-mono uppercase tracking-widest text-brand-lightgray block font-bold">
-              G'S BOOKING SYSTEM &bull; RETRIEVAL PORTAL
+              CG CHILLCATION &bull; RETRIEVAL PORTAL
             </span>
             <h3 className="text-2xl font-black text-white mt-0.5">Retrieve Reservation</h3>
           </div>
