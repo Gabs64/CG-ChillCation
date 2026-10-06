@@ -828,6 +828,117 @@ router.get('/admin/calendar', verifyToken, requireRoles(['STAFF', 'CUSTOMER_SUPP
   }
 });
 
+// Manual Booking Creation (from Master Calendar / Walk-ins / External OTAs like Airbnb, Agoda, Facebook)
+router.post('/admin/bookings/manual', verifyToken, requireRoles(['STAFF', 'CUSTOMER_SUPPORT', 'OWNER']), async (req, res) => {
+  try {
+    const {
+      roomId,
+      guestName,
+      guestCount = 2,
+      contactNumber = 'N/A',
+      email = '',
+      vehicle = 'None',
+      age = 25,
+      checkIn,
+      checkOut,
+      bookingSource = 'Direct / Walk-in',
+      totalAmount,
+      amountPaid = 0,
+      paymentMethod = 'Cash',
+      paymentReference = '',
+      notes = ''
+    } = req.body;
+
+    if (!roomId || !guestName || !checkIn || !checkOut) {
+      return res.status(400).json({ error: 'Room, Guest Name, Check-in, and Check-out dates are required.' });
+    }
+
+    if (new Date(checkOut) <= new Date(checkIn)) {
+      return res.status(400).json({ error: 'Check-out date must be after check-in date.' });
+    }
+
+    // Overlap check
+    const existingOverlapping = await get(
+      `SELECT id FROM bookings 
+       WHERE room_id = ? 
+       AND booking_status IN ('CONFIRMED', 'PENDING_PAYMENT', 'CHECKED_IN')
+       AND check_in < ? AND check_out > ?`,
+      [roomId, checkOut, checkIn]
+    );
+
+    if (existingOverlapping) {
+      return res.status(409).json({
+        error: 'This suite is already reserved for the selected dates. Please select different dates or a different suite.'
+      });
+    }
+
+    const room = await get('SELECT * FROM rooms WHERE id = ?', [roomId]);
+    if (!room) {
+      return res.status(404).json({ error: 'Selected room does not exist.' });
+    }
+
+    const nights = Math.max(1, Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)));
+    const roomRate = Number(room.price_per_night);
+    const roomSubtotal = roomRate * nights;
+    const finalTotal = totalAmount ? Number(totalAmount) : roomSubtotal + 1000;
+    const paidNum = Number(amountPaid) || 0;
+    const remainingBalance = Math.max(0, finalTotal - paidNum);
+    const downPayment = Math.round(finalTotal * 0.5);
+
+    const referenceNumber = generateBookingReference();
+    const guestEmail = email && email.trim() ? email.trim() : `${referenceNumber.toLowerCase()}@guest.local`;
+    const initialStatus = paidNum > 0 ? 'CONFIRMED' : 'PENDING_PAYMENT';
+
+    const insertResult = await run(
+      `INSERT INTO bookings (reference_number, room_id, guest_name, guest_count, contact_number, email, vehicle, age, check_in, check_out, booking_status, check_in_status)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'NOT_CHECKED_IN')`,
+      [referenceNumber, roomId, guestName.trim(), guestCount, contactNumber, guestEmail, vehicle, age, checkIn, checkOut, initialStatus]
+    );
+
+    const bookingId = insertResult.lastID;
+
+    // Breakdown Snapshot
+    await run(
+      `INSERT INTO booking_payment_breakdown (booking_id, room_rate_snapshot, nights, room_subtotal, inclusions_subtotal, security_deposit, other_charges, discount, total_amount, down_payment, remaining_balance)
+       VALUES (?, ?, ?, ?, 0, 1000, 0, 0, ?, ?, ?)`,
+      [bookingId, roomRate, nights, roomSubtotal, finalTotal, downPayment, remainingBalance]
+    );
+
+    // Security deposit record
+    await run(
+      `INSERT INTO security_deposits (booking_id, amount, payment_status, notes) VALUES (?, 1000, 'PENDING', ?)`,
+      [bookingId, `Source: ${bookingSource}. ${notes}`]
+    );
+
+    // Payment record if paid
+    if (paidNum > 0) {
+      await run(
+        `INSERT INTO payments (booking_id, payment_method, payment_reference, amount, payment_status, paid_at)
+         VALUES (?, ?, ?, ?, 'PAID', CURRENT_TIMESTAMP)`,
+        [bookingId, paymentMethod, paymentReference || `MANUAL-${Date.now()}`, paidNum]
+      );
+    }
+
+    await recordAuditLog(
+      req.user.name,
+      req.user.role,
+      'MANUAL_BOOKING_CREATED',
+      referenceNumber,
+      `Manual reservation for ${guestName} (${room.room_name}) from ${bookingSource}. Paid: ₱${paidNum}`
+    );
+
+    res.json({
+      success: true,
+      message: 'Booking created successfully',
+      bookingId,
+      referenceNumber
+    });
+  } catch (error) {
+    console.error('Error creating manual booking:', error);
+    res.status(500).json({ error: error.message || 'Failed to create manual booking' });
+  }
+});
+
 // Admin All Bookings List (with preserved snapshots and rich filters)
 router.get('/admin/bookings', verifyToken, requireRoles(['STAFF', 'CUSTOMER_SUPPORT', 'OWNER']), async (req, res) => {
   try {
