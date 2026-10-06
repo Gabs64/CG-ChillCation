@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import GuestLayout from './guest/GuestLayout';
+import SuiteDetailsPage from './guest/SuiteDetailsPage';
 import StaffLayout from './staff/StaffLayout';
 import OwnerLayout from './owner/OwnerLayout';
 import LoginPage from './shared/LoginPage';
@@ -83,6 +84,8 @@ export default function App() {
           {/* Public Dedicated Guest Routes (Section 49, 55) */}
           <Route path="/" element={<GuestLayout currentUser={currentUser} />} />
           <Route path="/guest" element={<GuestLayout currentUser={currentUser} />} />
+          <Route path="/suite/:id" element={<SuiteDetailsPage currentUser={currentUser} />} />
+          <Route path="/rooms/:id" element={<SuiteDetailsPage currentUser={currentUser} />} />
 
           {/* Administrative Login Route */}
           <Route

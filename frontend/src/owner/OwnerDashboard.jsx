@@ -2633,13 +2633,24 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                         <Edit2 className="w-3.5 h-3.5" />
                         <span>Edit Suite</span>
                       </button>
-                      <button
-                        onClick={() => handleDeactivateRoom(room)}
-                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs transition-colors"
-                        title="Delete Suite"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      <div className="flex items-center space-x-2">
+                        <a
+                          href={`/suite/${room.id}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 text-xs transition-colors"
+                          title="View Live Suite Page"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                        <button
+                          onClick={() => handleDeactivateRoom(room)}
+                          className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs transition-colors"
+                          title="Delete Suite"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

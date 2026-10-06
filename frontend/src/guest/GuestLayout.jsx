@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import GuestNavbar from './GuestNavbar';
 import GuestHome from './GuestHome';
-import RoomDetailsModal from './RoomDetailsModal';
 import BookingModal from './BookingModal';
 import BookingLookupModal from './BookingLookupModal';
 import WishlistModal from './WishlistModal';
@@ -11,7 +11,7 @@ import SharedFooter from '../shared/SharedFooter';
 const WISHLIST_KEY = 'cg_chillcation_wishlist_v2';
 
 export default function GuestLayout({ currentUser }) {
-  const [selectedRoomForDetails, setSelectedRoomForDetails] = useState(null);
+  const navigate = useNavigate();
   const [selectedRoomForBooking, setSelectedRoomForBooking] = useState(null);
   const [showLookupModal, setShowLookupModal] = useState(false);
   const [showWishlistModal, setShowWishlistModal] = useState(false);
@@ -59,7 +59,7 @@ export default function GuestLayout({ currentUser }) {
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6">
         <GuestHome
-          onSelectRoom={(room) => setSelectedRoomForDetails(room)}
+          onSelectRoom={(room) => navigate(`/suite/${room.id}`)}
           onOpenExperienceModal={() => setShowExperienceModal(true)}
           wishlist={wishlist}
           onToggleWishlist={handleToggleWishlist}
@@ -69,14 +69,6 @@ export default function GuestLayout({ currentUser }) {
       <SharedFooter />
 
       {/* Guest Modals */}
-      {selectedRoomForDetails && (
-        <RoomDetailsModal
-          room={selectedRoomForDetails}
-          onClose={() => setSelectedRoomForDetails(null)}
-          onStartBooking={(room) => setSelectedRoomForBooking(room)}
-        />
-      )}
-
       {selectedRoomForBooking && (
         <BookingModal
           room={selectedRoomForBooking}
@@ -100,7 +92,7 @@ export default function GuestLayout({ currentUser }) {
           onRemove={handleRemoveFromWishlist}
           onSelectRoom={(room) => {
             setShowWishlistModal(false);
-            setSelectedRoomForDetails(room);
+            navigate(`/suite/${room.id}`);
           }}
           onClose={() => setShowWishlistModal(false)}
         />
