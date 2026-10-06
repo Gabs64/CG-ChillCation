@@ -164,7 +164,10 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
     cancelText: 'Cancel',
     variant: 'danger',
     onConfirm: null,
-    isLoading: false
+    isLoading: false,
+    requireMatchText: '',
+    inputLabel: '',
+    inputPlaceholder: ''
   });
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('password123');
@@ -896,29 +899,46 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
 
   const handleDeactivateRoom = (room) => {
     const roomId = room?.id || room;
-    const roomName = room?.room_name ? ` "${room.room_name}"` : '';
+    const roomName = room?.room_name || 'Suite';
+    
+    // Step 1: Initial Deletion Confirmation Prompt
     setConfirmModalConfig({
       isOpen: true,
       title: 'Delete Suite',
-      subtitle: 'Suite Inventory Control',
-      message: `Are you sure you want to delete and deactivate${roomName}? This will remove it from the master reservation calendar and room catalog.`,
-      confirmText: 'Delete Suite',
+      subtitle: 'Step 1 of 2: Inventory Removal',
+      message: `Are you sure you want to delete and deactivate "${roomName}"? This will remove the suite from active catalog listings and the master reservation calendar.`,
+      confirmText: 'Continue to Verification',
       cancelText: 'Cancel',
-      variant: 'danger',
-      onConfirm: async () => {
-        setConfirmModalConfig((prev) => ({ ...prev, isLoading: true }));
-        try {
-          await fetch(`/api/owner/rooms/${roomId}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          await fetchRooms();
-          await fetchCalendarData();
-        } catch (err) {
-          console.error(err);
-        } finally {
-          setConfirmModalConfig({ isOpen: false, isLoading: false });
-        }
+      variant: 'warning',
+      requireMatchText: '',
+      onConfirm: () => {
+        // Step 2: Second Prompt - Requires typing exact suite name to confirm
+        setConfirmModalConfig({
+          isOpen: true,
+          title: 'Confirm Suite Deletion',
+          subtitle: 'Step 2 of 2: Security Verification',
+          message: `This action cannot be undone. To permanently delete this suite and its reservation calendar row, please type the exact suite name below:`,
+          confirmText: 'Permanently Delete Suite',
+          cancelText: 'Cancel',
+          variant: 'danger',
+          requireMatchText: roomName,
+          inputPlaceholder: `Type "${roomName}" here`,
+          onConfirm: async () => {
+            setConfirmModalConfig((prev) => ({ ...prev, isLoading: true }));
+            try {
+              await fetch(`/api/owner/rooms/${roomId}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+              });
+              await fetchRooms();
+              await fetchCalendarData();
+            } catch (err) {
+              console.error(err);
+            } finally {
+              setConfirmModalConfig({ isOpen: false, isLoading: false, requireMatchText: '' });
+            }
+          }
+        });
       }
     });
   };
@@ -3330,7 +3350,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
       {/* ================= MODAL 6: UNIVERSAL CONFIRMATION MODAL ================= */}
       <ConfirmModal
         isOpen={confirmModalConfig.isOpen}
-        onClose={() => setConfirmModalConfig({ isOpen: false })}
+        onClose={() => setConfirmModalConfig({ isOpen: false, requireMatchText: '' })}
         onConfirm={confirmModalConfig.onConfirm}
         title={confirmModalConfig.title}
         subtitle={confirmModalConfig.subtitle}
@@ -3339,6 +3359,9 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
         cancelText={confirmModalConfig.cancelText}
         variant={confirmModalConfig.variant}
         isLoading={confirmModalConfig.isLoading}
+        requireMatchText={confirmModalConfig.requireMatchText}
+        inputLabel={confirmModalConfig.inputLabel}
+        inputPlaceholder={confirmModalConfig.inputPlaceholder}
       />
 
     </div>
