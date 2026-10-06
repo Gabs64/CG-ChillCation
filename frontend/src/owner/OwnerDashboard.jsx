@@ -244,12 +244,28 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   };
 
   const handleDeactivateRoom = async (roomId) => {
-    if (!window.confirm('Are you sure you want to deactivate this room? Historical bookings will be preserved.')) return;
+    if (!window.confirm('Are you sure you want to delete/deactivate this room?')) return;
     try {
       await fetch(`/api/owner/rooms/${roomId}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
+      fetchRooms();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handlePurgeAllRooms = async () => {
+    if (!window.confirm('Delete all demo rooms and reset to 0 rooms?')) return;
+    try {
+      for (const r of rooms) {
+        await fetch(`/api/owner/rooms/${r.id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      setRooms([]);
       fetchRooms();
     } catch (err) {
       console.error(err);
@@ -500,70 +516,102 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
               <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Inventory Control</span>
               <h2 className="text-2xl font-black text-white">Room Customization & Pricing</h2>
             </div>
-            <button
-              onClick={() => handleOpenRoomModal()}
-              className="liquid-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add New Suite</span>
-            </button>
-          </div>
-
-          {/* Rooms Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-4 flex flex-col justify-between"
+            <div className="flex flex-wrap items-center gap-2">
+              {rooms.length > 0 && (
+                <button
+                  onClick={handlePurgeAllRooms}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 flex items-center space-x-1.5 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Clear All Demo Rooms ({rooms.length})</span>
+                </button>
+              )}
+              <button
+                onClick={() => handleOpenRoomModal()}
+                className="liquid-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
               >
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-lg font-black text-white">{room.room_name}</h3>
-                    {room.is_featured && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-black flex items-center space-x-1">
-                        <Sparkles className="w-2.5 h-2.5 fill-black" />
-                        <span>Featured</span>
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-2 text-xs text-zinc-400 mb-2">
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>{room.location}</span>
-                    <span>&bull;</span>
-                    <span className="font-mono text-white font-bold">₱{Number(room.price_per_night).toLocaleString()}/night</span>
-                  </div>
-
-                  <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed mb-3">
-                    {room.description}
-                  </p>
-
-                  {/* Photos Summary */}
-                  <div className="text-[11px] font-mono text-zinc-400 bg-white/5 p-2 rounded-xl border border-white/10 mb-2">
-                    📸 {room.images?.length || 0} Photos Configured &bull; Status: {room.status}
-                  </div>
-                </div>
-
-                <div className="pt-3 border-t border-white/10 flex items-center justify-between">
-                  <button
-                    onClick={() => handleOpenRoomModal(room)}
-                    className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center space-x-1.5"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                    <span>Edit Suite</span>
-                  </button>
-
-                  <button
-                    onClick={() => handleDeactivateRoom(room.id)}
-                    className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs"
-                    title="Deactivate Suite"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))}
+                <Plus className="w-4 h-4" />
+                <span>Add New Suite</span>
+              </button>
+            </div>
           </div>
+
+          {/* Rooms Grid or Empty State */}
+          {rooms.length === 0 ? (
+            <div className="p-12 sm:p-16 rounded-3xl bg-black/40 border-2 border-dashed border-white/15 text-center space-y-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-zinc-400">
+                <Building2 className="w-7 h-7" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">No Suites in Inventory (Clean Slate)</h3>
+                <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
+                  All demo rooms have been cleared. Click "Add New Suite" to begin configuring your actual resort suites and pricing.
+                </p>
+              </div>
+              <button
+                onClick={() => handleOpenRoomModal()}
+                className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider inline-flex items-center space-x-2 shadow-xl"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add First Real Suite</span>
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rooms.map((room) => (
+                <div
+                  key={room.id}
+                  className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-4 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-black text-white">{room.room_name}</h3>
+                      {room.is_featured && (
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-black flex items-center space-x-1">
+                          <Sparkles className="w-2.5 h-2.5 fill-black" />
+                          <span>Featured</span>
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-2 text-xs text-zinc-400 mb-2">
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>{room.location}</span>
+                      <span>&bull;</span>
+                      <span className="font-mono text-white font-bold">₱{Number(room.price_per_night).toLocaleString()}/night</span>
+                    </div>
+
+                    <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed mb-3">
+                      {room.description}
+                    </p>
+
+                    {/* Photos Summary */}
+                    <div className="text-[11px] font-mono text-zinc-400 bg-white/5 p-2 rounded-xl border border-white/10 mb-2">
+                      📸 {room.images?.length || 0} Photos Configured &bull; Status: {room.status}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-white/10 flex items-center justify-between">
+                    <button
+                      onClick={() => handleOpenRoomModal(room)}
+                      className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center space-x-1.5"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit Suite</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeactivateRoom(room.id)}
+                      className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs"
+                      title="Delete Suite"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

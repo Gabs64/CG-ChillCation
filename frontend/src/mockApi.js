@@ -1,53 +1,9 @@
 // Client-side Mock Data Store & API Interceptor for CG Chillcation v2.0
 
-const DB_KEY = 'cg_chillcation_mock_db_v2';
+const DB_KEY = 'cg_chillcation_mock_db_v3';
 
 const getInitialRooms = () => {
-  const roomImagesPool = [
-    'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80',
-    'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=1200&q=80'
-  ];
-
-  const standardPaymentMethods = ['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer'];
-
-  const rooms = [];
-  for (let i = 1; i <= 14; i++) {
-    const roomNum = i < 10 ? `0${i}` : `${i}`;
-    const location = i <= 7 ? 'Antipolo' : 'Cainta';
-    const name = `Room ${roomNum}`;
-    const description = `Luxury 35sqm minimalist suite located in ${location}. Features king-sized bed, high-speed Wi-Fi, ambient smart lighting, air conditioning, and private bathroom with hot shower.`;
-    const price = location === 'Antipolo' ? 2800 : 2500;
-    const isFeatured = (i === 1 || i === 4 || i === 8 || i === 12);
-    const mapsUrl = location === 'Antipolo'
-      ? 'https://maps.google.com/?q=Antipolo+Rizal+CG+Chillcation'
-      : 'https://maps.google.com/?q=Cainta+Rizal+CG+Chillcation';
-
-    const images = [
-      roomImagesPool[(i - 1) % roomImagesPool.length],
-      roomImagesPool[(i) % roomImagesPool.length],
-      roomImagesPool[(i + 1) % roomImagesPool.length],
-      roomImagesPool[(i + 2) % roomImagesPool.length]
-    ];
-
-    rooms.push({
-      id: i,
-      room_name: name,
-      location,
-      description,
-      price_per_night: price,
-      status: 'AVAILABLE',
-      is_featured: isFeatured,
-      google_maps_url: mapsUrl,
-      images,
-      payment_methods: [...standardPaymentMethods]
-    });
-  }
-  return rooms;
+  return []; // Clean slate: 0 demo rooms
 };
 
 const formatDate = (date) => {
@@ -352,13 +308,16 @@ const getInitialDb = () => {
 
 export const getDb = () => {
   try {
+    localStorage.removeItem('cg_chillcation_mock_db');
+    localStorage.removeItem('cg_chillcation_mock_db_v2');
     const raw = localStorage.getItem(DB_KEY);
     if (!raw) {
       const initial = getInitialDb();
       localStorage.setItem(DB_KEY, JSON.stringify(initial));
       return initial;
     }
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    return parsed;
   } catch (e) {
     const initial = getInitialDb();
     localStorage.setItem(DB_KEY, JSON.stringify(initial));
