@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Calendar, User, Phone, Mail, Car, ShieldCheck, MapPin, QrCode, CheckCircle2, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { Search, Calendar, User, Phone, Mail, Car, ShieldCheck, MapPin, QrCode, CheckCircle2, AlertCircle, ExternalLink, Loader2, Download } from 'lucide-react';
 import QRCode from 'qrcode';
 import CustomModal from '../shared/CustomModal';
 
@@ -10,6 +10,16 @@ export default function BookingLookupModal({ onClose, onOpenReviewModal }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+
+  const handleDownloadQr = () => {
+    if (!qrCodeDataUrl) return;
+    const link = document.createElement('a');
+    link.href = qrCodeDataUrl;
+    link.download = `CG-Chillcation-QR-Pass-${booking?.reference_number || 'booking'}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleLookup = async (e) => {
     e.preventDefault();
@@ -176,20 +186,32 @@ export default function BookingLookupModal({ onClose, onOpenReviewModal }) {
 
             {/* QR Code & Check-in Pass */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-4 rounded-2xl bg-white text-black text-center flex flex-col items-center justify-center space-y-2 shadow-xl">
-                <span className="text-[11px] font-black uppercase tracking-wider text-black font-mono">
-                  Check-in Pass QR
-                </span>
+              <div className="p-4 rounded-2xl bg-white text-black text-center flex flex-col items-center justify-between space-y-3 shadow-xl">
+                <div>
+                  <span className="text-[11px] font-black uppercase tracking-wider text-black font-mono block">
+                    Check-in Pass QR
+                  </span>
+                  <span className="text-[10px] text-zinc-600 block">
+                    Present to staff at reception upon arrival
+                  </span>
+                </div>
                 {qrCodeDataUrl ? (
-                  <img src={qrCodeDataUrl} alt="Check-in QR" className="w-36 h-36 mx-auto" />
+                  <div className="bg-white p-1 rounded-xl border border-zinc-200">
+                    <img src={qrCodeDataUrl} alt="Check-in QR" className="w-36 h-36 mx-auto" />
+                  </div>
                 ) : (
                   <div className="w-36 h-36 flex items-center justify-center">
                     <QrCode className="w-8 h-8 animate-pulse text-zinc-400" />
                   </div>
                 )}
-                <span className="text-[10px] font-mono text-zinc-700 font-bold">
-                  Present to staff upon arrival
-                </span>
+                <button
+                  type="button"
+                  onClick={handleDownloadQr}
+                  className="w-full py-2 px-3 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1.5 shadow-md hover:scale-[1.02] transition-all"
+                >
+                  <Download className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Download QR Pass</span>
+                </button>
               </div>
 
               {/* Financial Breakdown Snapshot */}

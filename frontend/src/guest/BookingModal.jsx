@@ -583,6 +583,16 @@ export default function BookingModal({ room, onClose }) {
     }
   };
 
+  const handleDownloadCheckinQr = () => {
+    if (!checkinQrUrl) return;
+    const link = document.createElement('a');
+    link.href = checkinQrUrl;
+    link.download = `CG-Chillcation-QR-Pass-${confirmedBooking?.reference_number || 'booking'}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <CustomModal
       isOpen={true}
@@ -1057,7 +1067,7 @@ export default function BookingModal({ room, onClose }) {
           {/* ================= STEP 6: CONFIRMATION & QR CODES (Section 9, 34, 56) ================= */}
           {step === 6 && (
             <div className="text-center space-y-6 py-2">
-              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-xl">
                 <CheckCircle2 className="w-8 h-8" />
               </div>
 
@@ -1068,23 +1078,50 @@ export default function BookingModal({ room, onClose }) {
                 </p>
               </div>
 
+              {/* Crucial Staff Pass Advisory Banner */}
+              <div className="p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-400/60 text-amber-200 text-xs text-left flex items-start space-x-3 shadow-xl animate-fade-in max-w-xl mx-auto">
+                <div className="p-2 rounded-xl bg-amber-400 text-black shrink-0 mt-0.5 shadow-md">
+                  <Download className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <strong className="text-white text-sm block font-black uppercase tracking-wide">
+                    Important: Please Download Your Check-in QR Pass!
+                  </strong>
+                  <p className="text-zinc-300 leading-relaxed text-[11.5px]">
+                    Please <strong className="text-amber-300 underline">download or save a screenshot</strong> of your QR Code pass below. This serves as your <strong className="text-white font-bold">official pass to proceed to our staff</strong> at reception upon arrival for instant check-in verification.
+                  </p>
+                </div>
+              </div>
+
               {/* QR Passes Section */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto">
                 {/* 1. Check-in Pass QR */}
-                <div className="p-4 bg-white rounded-2xl text-black space-y-2 shadow-2xl">
-                  <span className="text-[11px] font-mono font-black uppercase tracking-wider block text-black">
-                    Check-in QR Pass
-                  </span>
+                <div className="p-4 bg-white rounded-2xl text-black space-y-3 shadow-2xl flex flex-col justify-between">
+                  <div>
+                    <span className="text-[11px] font-mono font-black uppercase tracking-wider block text-black">
+                      Check-in QR Pass
+                    </span>
+                    <span className="text-[10px] text-zinc-600 block">
+                      Present to Staff Upon Arrival
+                    </span>
+                  </div>
                   {checkinQrUrl && (
-                    <img src={checkinQrUrl} alt="Checkin QR" className="w-40 h-40 mx-auto" />
+                    <div className="bg-white p-2 rounded-xl border border-zinc-200 shadow-inner">
+                      <img src={checkinQrUrl} alt="Checkin QR" className="w-36 h-36 mx-auto" />
+                    </div>
                   )}
-                  <span className="text-[10px] text-zinc-700 font-bold block">
-                    Scan upon arrival at reception
-                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDownloadCheckinQr}
+                    className="w-full py-2.5 px-3 rounded-xl bg-black hover:bg-zinc-800 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center space-x-1.5 shadow-lg hover:scale-[1.02] transition-all"
+                  >
+                    <Download className="w-4 h-4 text-amber-400" />
+                    <span>Download QR Pass</span>
+                  </button>
                 </div>
 
                 {/* 2. Guest Experience Submission QR (Section 9) */}
-                <div className="p-4 bg-zinc-900 border border-white/20 rounded-2xl text-white space-y-2 shadow-2xl flex flex-col justify-between">
+                <div className="p-4 bg-zinc-900 border border-white/20 rounded-2xl text-white space-y-3 shadow-2xl flex flex-col justify-between">
                   <div>
                     <span className="text-[11px] font-mono font-black uppercase tracking-wider block text-amber-400">
                       Guest Experience QR
@@ -1236,13 +1273,23 @@ export default function BookingModal({ room, onClose }) {
           )}
 
           {step === 6 && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="liquid-btn-primary px-8 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
-            >
-              Done & Close
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={handleDownloadCheckinQr}
+                className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white flex items-center space-x-1.5 transition-all"
+              >
+                <Download className="w-4 h-4 text-amber-400" />
+                <span>Download Pass</span>
+              </button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="liquid-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
+              >
+                Done & Close
+              </button>
+            </div>
           )}
         </div>
     </CustomModal>
