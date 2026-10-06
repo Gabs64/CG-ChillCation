@@ -289,6 +289,15 @@ export const initDb = async () => {
     if (!colNames.includes('updated_at')) {
       await run('ALTER TABLE rooms ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
     }
+
+    const imgCols = await all('PRAGMA table_info(room_images)');
+    const imgColNames = imgCols.map((c) => c.name);
+    if (!imgColNames.includes('is_primary')) {
+      await run('ALTER TABLE room_images ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!imgColNames.includes('created_at')) {
+      await run('ALTER TABLE room_images ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP');
+    }
   } catch (migErr) {
     console.warn('Migration check notice:', migErr.message);
   }
