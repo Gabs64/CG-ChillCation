@@ -100,12 +100,6 @@ export default function LoadingScreen({ minDisplayTime = 1400, onFinished }) {
           </div>
         </div>
 
-        {/* Subtle Feature Badge */}
-        <div className="pt-4 flex items-center space-x-2 text-[10px] font-mono text-zinc-500 uppercase tracking-widest">
-          <Sparkles className="w-3 h-3 text-emerald-400" />
-          <span>Minimalist Luxury Suites</span>
-        </div>
-
       </div>
     </div>
   );
