@@ -113,6 +113,7 @@ export const initDb = async () => {
       name TEXT NOT NULL,
       description TEXT,
       price REAL NOT NULL DEFAULT 0,
+      location TEXT NOT NULL DEFAULT 'All',
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -318,6 +319,12 @@ export const initDb = async () => {
     }
     if (!imgColNames.includes('created_at')) {
       await run('ALTER TABLE room_images ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP');
+    }
+
+    const incCols = await all('PRAGMA table_info(inclusions)');
+    const incColNames = incCols.map((c) => c.name);
+    if (!incColNames.includes('location')) {
+      await run("ALTER TABLE inclusions ADD COLUMN location TEXT NOT NULL DEFAULT 'All'");
     }
   } catch (migErr) {
     console.warn('Migration check notice:', migErr.message);

@@ -31,11 +31,11 @@ const getInitialDb = () => {
       google_maps_cainta: 'https://maps.google.com/?q=Cainta+Rizal+CG+Chillcation'
     },
     inclusions: [
-      { id: 1, name: 'Car Parking Space', description: 'Designated secure covered parking space for 1 standard automobile', price: 200, is_active: 1 },
-      { id: 2, name: 'Motorcycle Parking Space', description: 'Designated secure motorcycle parking bay', price: 100, is_active: 1 },
-      { id: 3, name: 'Extra Guest (Mattress & Linen)', description: 'Additional guest accommodation setup with complete premium bedding kit', price: 300, is_active: 1 },
-      { id: 4, name: 'Late Check-out Pass (Until 2:00 PM)', description: 'Extend your stay by 2 hours subject to availability', price: 500, is_active: 1 },
-      { id: 5, name: 'Artisan Breakfast Basket', description: 'Curated breakfast spread with fresh brew coffee and pastries for 2', price: 450, is_active: 1 }
+      { id: 1, name: 'Car Parking Space', description: 'Designated secure covered parking space for 1 standard automobile', price: 200, location: 'All', is_active: 1 },
+      { id: 2, name: 'Motorcycle Parking Space', description: 'Designated secure motorcycle parking bay', price: 100, location: 'All', is_active: 1 },
+      { id: 3, name: 'Extra Guest (Mattress & Linen)', description: 'Additional guest accommodation setup with complete premium bedding kit', price: 300, location: 'All', is_active: 1 },
+      { id: 4, name: 'Late Check-out Pass (Until 2:00 PM)', description: 'Extend your stay by 2 hours subject to availability', price: 500, location: 'Antipolo', is_active: 1 },
+      { id: 5, name: 'Artisan Breakfast Basket', description: 'Curated breakfast spread with fresh brew coffee and pastries for 2', price: 450, location: 'Cainta', is_active: 1 }
     ],
     policies: [
       {
@@ -412,7 +412,10 @@ export const initMockApi = () => {
 
     // 3. INCLUSIONS & POLICIES
     if (pathname === '/api/inclusions' && method === 'GET') {
-      const activeInclusions = (db.inclusions || []).filter((i) => i.is_active);
+      let activeInclusions = (db.inclusions || []).filter((i) => i.is_active);
+      if (query.location && query.location !== 'All') {
+        activeInclusions = activeInclusions.filter((i) => !i.location || i.location === 'All' || i.location === query.location);
+      }
       return jsonResponse({ success: true, inclusions: activeInclusions });
     }
 
@@ -907,21 +910,26 @@ export const initMockApi = () => {
 
     // 19. OWNER INCLUSIONS CRUD
     if (pathname === '/api/owner/inclusions' && method === 'GET') {
-      return jsonResponse({ success: true, inclusions: db.inclusions || [] });
+      let list = db.inclusions || [];
+      if (query.location && query.location !== 'All') {
+        list = list.filter((i) => i.location === query.location || i.location === 'All');
+      }
+      return jsonResponse({ success: true, inclusions: list });
     }
 
     if (pathname === '/api/owner/inclusions' && method === 'POST') {
-      const { name, description, price, isActive = true } = body;
+      const { name, description, price, location = 'All', isActive = true } = body;
       const newInc = {
         id: (db.inclusions || []).length + 1,
         name,
         description: description || '',
         price: Number(price),
+        location: location || 'All',
         is_active: isActive ? 1 : 0
       };
       db.inclusions = db.inclusions || [];
       db.inclusions.push(newInc);
-      recordAudit(db, 'CG Owner', 'OWNER', 'INCLUSION_ADDED', name, `Added inclusion at ₱${price}`);
+      recordAudit(db, 'CG Owner', 'OWNER', 'INCLUSION_ADDED', name, `Added inclusion for ${location} at ₱${price}`);
       saveDb(db);
       return jsonResponse({ success: true, message: 'Inclusion created', inclusionId: newInc.id });
     }
@@ -933,8 +941,9 @@ export const initMockApi = () => {
         if (body.name !== undefined) inc.name = body.name;
         if (body.description !== undefined) inc.description = body.description;
         if (body.price !== undefined) inc.price = Number(body.price);
+        if (body.location !== undefined) inc.location = body.location;
         if (body.isActive !== undefined) inc.is_active = body.isActive ? 1 : 0;
-        recordAudit(db, 'CG Owner', 'OWNER', 'INCLUSION_UPDATED', inc.name, `Updated inclusion price to ₱${inc.price}`);
+        recordAudit(db, 'CG Owner', 'OWNER', 'INCLUSION_UPDATED', inc.name, `Updated inclusion (${inc.location || 'All'}) price to ₱${inc.price}`);
         saveDb(db);
       }
       return jsonResponse({ success: true, message: 'Inclusion updated' });

@@ -125,13 +125,15 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
   const [roomFormPaymentMethods, setRoomFormPaymentMethods] = useState(['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
   const roomFileInputRef = useRef(null);
 
-  // 8. Inclusions State
+  // 8. Inclusions State (with Antipolo vs Cainta location differentiation)
   const [inclusions, setInclusions] = useState([]);
   const [showInclusionModal, setShowInclusionModal] = useState(false);
   const [editingInclusion, setEditingInclusion] = useState(null);
   const [incName, setIncName] = useState('');
   const [incDesc, setIncDesc] = useState('');
   const [incPrice, setIncPrice] = useState(200);
+  const [incLocation, setIncLocation] = useState('All'); // 'All' | 'Antipolo' | 'Cainta'
+  const [incLocationFilter, setIncLocationFilter] = useState('All');
   const [incActive, setIncActive] = useState(true);
 
   // 9. Policies State
@@ -969,13 +971,13 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
         await fetch(`/api/owner/inclusions/${editingInclusion.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name: incName, description: incDesc, price: Number(incPrice), isActive: incActive })
+          body: JSON.stringify({ name: incName, description: incDesc, price: Number(incPrice), location: incLocation, isActive: incActive })
         });
       } else {
         await fetch('/api/owner/inclusions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name: incName, description: incDesc, price: Number(incPrice), isActive: incActive })
+          body: JSON.stringify({ name: incName, description: incDesc, price: Number(incPrice), location: incLocation, isActive: incActive })
         });
       }
       setShowInclusionModal(false);
@@ -2664,8 +2666,11 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
           <div className="space-y-6">
             <div className="p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
               <div>
-                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Add-ons & Pricing</span>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Add-ons & Differentiated Pricing</span>
                 <h2 className="text-2xl font-black text-white">Inclusion Price Configuration</h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Configure custom pricing per location (Antipolo vs. Cainta) or apply globally.
+                </p>
               </div>
               <button
                 onClick={() => {
@@ -2673,6 +2678,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                   setIncName('');
                   setIncDesc('');
                   setIncPrice(200);
+                  setIncLocation(incLocationFilter !== 'All' ? incLocationFilter : 'All');
                   setIncActive(true);
                   setShowInclusionModal(true);
                 }}
@@ -2683,32 +2689,86 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
               </button>
             </div>
 
+            {/* Location Filter Tabs */}
+            <div className="flex items-center space-x-2">
+              {[
+                { id: 'All', label: 'All Inclusions', count: inclusions.length },
+                { id: 'Antipolo', label: 'Antipolo Only', count: inclusions.filter((i) => i.location === 'Antipolo').length },
+                { id: 'Cainta', label: 'Cainta Only', count: inclusions.filter((i) => i.location === 'Cainta').length },
+                { id: 'Global', label: 'All Locations (Shared)', count: inclusions.filter((i) => !i.location || i.location === 'All').length }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setIncLocationFilter(tab.id === 'Global' ? 'All_Shared' : tab.id)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-1.5 ${
+                    (tab.id === 'Global' && incLocationFilter === 'All_Shared') || incLocationFilter === tab.id
+                      ? 'bg-white text-black shadow-lg shadow-white/10'
+                      : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded-md bg-black/40 text-zinc-300">
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {/* Inclusions List */}
             <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
-              {inclusions.map((inc) => (
-                <div key={inc.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center space-x-2">
+              {inclusions
+                .filter((inc) => {
+                  if (incLocationFilter === 'All') return true;
+                  if (incLocationFilter === 'All_Shared') return !inc.location || inc.location === 'All';
+                  return inc.location === incLocationFilter;
+                })
+                .map((inc) => (
+                <div key={inc.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:border-white/20 transition-colors">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <h4 className="text-sm font-bold text-white">{inc.name}</h4>
+                      
+                      {/* Location Badge */}
+                      {inc.location === 'Antipolo' ? (
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                          📍 Antipolo
+                        </span>
+                      ) : inc.location === 'Cainta' ? (
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          📍 Cainta
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-white/10 text-zinc-300 border border-white/15">
+                          🌐 All Locations
+                        </span>
+                      )}
+
                       <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${inc.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
                         {inc.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-0.5">{inc.description}</p>
+                    <p className="text-xs text-zinc-400">{inc.description || 'No description provided.'}</p>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <span className="text-base font-black text-white font-mono">₱{Number(inc.price).toLocaleString()}</span>
+
+                  <div className="flex items-center justify-between sm:justify-end space-x-4 pt-2 sm:pt-0 border-t sm:border-t-0 border-white/5">
+                    <div className="text-left sm:text-right">
+                      <span className="text-[10px] font-mono text-zinc-500 uppercase block">Rate</span>
+                      <span className="text-base sm:text-lg font-black text-white font-mono">₱{Number(inc.price).toLocaleString()}</span>
+                    </div>
                     <button
                       onClick={() => {
                         setEditingInclusion(inc);
                         setIncName(inc.name);
-                        setIncDesc(inc.description);
+                        setIncDesc(inc.description || '');
                         setIncPrice(inc.price);
+                        setIncLocation(inc.location || 'All');
                         setIncActive(Boolean(inc.is_active));
                         setShowInclusionModal(true);
                       }}
-                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs"
+                      className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs transition-colors"
+                      title="Edit Inclusion"
                     >
-                      <Edit2 className="w-3.5 h-3.5" />
+                      <Edit2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -3222,43 +3282,64 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
         isOpen={showInclusionModal}
         onClose={() => setShowInclusionModal(false)}
         title={editingInclusion ? 'Edit Inclusion' : 'Add Inclusion'}
-        subtitle="Add-ons & Inclusions"
+        subtitle="Add-ons & Inclusions by Location"
         icon={Sparkles}
         size="md"
       >
-        <form onSubmit={handleSaveInclusion} className="space-y-3 text-xs">
+        <form onSubmit={handleSaveInclusion} className="space-y-4 text-xs">
           <div>
             <label className="text-zinc-400 font-mono block mb-1">Inclusion Name *</label>
             <input
               type="text"
               required
               value={incName}
+              placeholder="e.g. Car Parking Space, Extra Mattress"
               onChange={(e) => setIncName(e.target.value)}
               className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
             />
           </div>
-          <div>
-            <label className="text-zinc-400 font-mono block mb-1">Price (₱) *</label>
-            <input
-              type="number"
-              required
-              value={incPrice}
-              onChange={(e) => setIncPrice(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
-            />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-zinc-400 font-mono block mb-1">Applicable Location *</label>
+              <select
+                value={incLocation}
+                onChange={(e) => setIncLocation(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white cursor-pointer font-medium"
+              >
+                <option value="All">All Locations (Shared)</option>
+                <option value="Antipolo">Antipolo Suites Only</option>
+                <option value="Cainta">Cainta Suites Only</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-zinc-400 font-mono block mb-1">Price (₱) *</label>
+              <input
+                type="number"
+                required
+                min="0"
+                value={incPrice}
+                onChange={(e) => setIncPrice(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
+              />
+            </div>
           </div>
+
           <div>
             <label className="text-zinc-400 font-mono block mb-1">Description</label>
             <textarea
               rows={2}
               value={incDesc}
+              placeholder="Brief description of this inclusion or amenity perk..."
               onChange={(e) => setIncDesc(e.target.value)}
               className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white"
             />
           </div>
+
           <div className="pt-2 flex justify-end space-x-2">
             <button type="button" onClick={() => setShowInclusionModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
-            <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Save</button>
+            <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Save Inclusion</button>
           </div>
         </form>
       </CustomModal>

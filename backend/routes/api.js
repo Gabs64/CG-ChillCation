@@ -195,10 +195,20 @@ router.post('/bookings/check-availability', async (req, res) => {
 // 3. PUBLIC INCLUSIONS & POLICIES
 // ----------------------------------------------------
 
-// Get all active inclusions for guests
+// Get all active inclusions for guests (optionally filtered by location)
 router.get('/inclusions', async (req, res) => {
   try {
-    const inclusions = await all('SELECT * FROM inclusions WHERE is_active = 1 ORDER BY price ASC');
+    const { location } = req.query;
+    let sql = 'SELECT * FROM inclusions WHERE is_active = 1';
+    let params = [];
+
+    if (location && location !== 'All') {
+      sql += " AND (location = 'All' OR location = ?)";
+      params.push(location);
+    }
+    sql += ' ORDER BY location ASC, price ASC';
+
+    const inclusions = await all(sql, params);
     res.json({ success: true, inclusions });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1304,10 +1314,20 @@ router.delete('/owner/rooms/:id', verifyToken, requireRoles(['OWNER']), async (r
   }
 });
 
-// Owner Inclusion Price Configuration
+// Owner Inclusion Price Configuration (Differentiated by location: Antipolo / Cainta / All)
 router.get('/owner/inclusions', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
-    const inclusions = await all('SELECT * FROM inclusions ORDER BY id ASC');
+    const { location } = req.query;
+    let sql = 'SELECT * FROM inclusions';
+    let params = [];
+
+    if (location && location !== 'All') {
+      sql += ' WHERE location = ?';
+      params.push(location);
+    }
+    sql += ' ORDER BY location ASC, id ASC';
+
+    const inclusions = await all(sql, params);
     res.json({ success: true, inclusions });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1316,15 +1336,15 @@ router.get('/owner/inclusions', verifyToken, requireRoles(['OWNER']), async (req
 
 router.post('/owner/inclusions', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
-    const { name, description, price, isActive = true } = req.body;
+    const { name, description, price, location = 'All', isActive = true } = req.body;
     if (!name || price === undefined) return res.status(400).json({ error: 'Name and price are required.' });
 
     const result = await run(
-      `INSERT INTO inclusions (name, description, price, is_active) VALUES (?, ?, ?, ?)`,
-      [name, description || '', price, isActive ? 1 : 0]
+      `INSERT INTO inclusions (name, description, price, location, is_active) VALUES (?, ?, ?, ?, ?)`,
+      [name, description || '', price, location, isActive ? 1 : 0]
     );
 
-    await recordAuditLog(req.user.name, req.user.role, 'INCLUSION_ADDED', name, `Added inclusion at ₱${price}`);
+    await recordAuditLog(req.user.name, req.user.role, 'INCLUSION_ADDED', name, `Added inclusion for ${location} at ₱${price}`);
     res.json({ success: true, message: 'Inclusion created', inclusionId: result.lastID });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1333,16 +1353,16 @@ router.post('/owner/inclusions', verifyToken, requireRoles(['OWNER']), async (re
 
 router.patch('/owner/inclusions/:id', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
-    const { name, description, price, isActive } = req.body;
+    const { name, description, price, location, isActive } = req.body;
     const current = await get('SELECT * FROM inclusions WHERE id = ?', [req.params.id]);
     if (!current) return res.status(404).json({ error: 'Inclusion not found.' });
 
     await run(
-      `UPDATE inclusions SET name = COALESCE(?, name), description = COALESCE(?, description), price = COALESCE(?, price), is_active = COALESCE(?, is_active), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-      [name, description, price, isActive !== undefined ? (isActive ? 1 : 0) : null, req.params.id]
+      `UPDATE inclusions SET name = COALESCE(?, name), description = COALESCE(?, description), price = COALESCE(?, price), location = COALESCE(?, location), is_active = COALESCE(?, is_active), updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [name, description, price, location, isActive !== undefined ? (isActive ? 1 : 0) : null, req.params.id]
     );
 
-    await recordAuditLog(req.user.name, req.user.role, 'INCLUSION_UPDATED', current.name, `Updated price from ₱${current.price} to ₱${price || current.price}`, current.price, price);
+    await recordAuditLog(req.user.name, req.user.role, 'INCLUSION_UPDATED', current.name, `Updated for ${location || current.location}: ₱${price || current.price}`, current.price, price);
     res.json({ success: true, message: 'Inclusion updated successfully.' });
   } catch (error) {
     res.status(500).json({ error: error.message });

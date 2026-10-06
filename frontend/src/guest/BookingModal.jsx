@@ -308,7 +308,7 @@ export default function BookingModal({ room, onClose }) {
     // Fetch Inclusions and Policies in background
     fetchInclusions();
     fetchPolicies();
-  }, [room?.id]);
+  }, [room?.id, room?.location]);
 
   const fetchBookedDates = async () => {
     if (!room?.id) return;
@@ -329,7 +329,8 @@ export default function BookingModal({ room, onClose }) {
   const fetchInclusions = async () => {
     setIsLoadingInclusions(true);
     try {
-      const res = await fetch('/api/inclusions');
+      const locationQuery = room?.location ? `?location=${encodeURIComponent(room.location)}` : '';
+      const res = await fetch(`/api/inclusions${locationQuery}`);
       const data = await res.json();
       if (data.inclusions) {
         setAvailableInclusions(data.inclusions);
