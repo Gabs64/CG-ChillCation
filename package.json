@@ -8,10 +8,13 @@
     "backend"
   ],
   "scripts": {
+    "start": "npm --prefix backend start",
+    "start:backend": "npm --prefix backend start",
     "build": "npm --prefix frontend run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "dev": "npm --prefix backend dev",
     "dev:backend": "npm --prefix backend dev",
     "dev:frontend": "npm --prefix frontend dev",
-    "build:frontend": "npm --prefix frontend build",
-    "start:backend": "npm --prefix backend start"
+    "seed": "npm --prefix backend run seed"
   }
 }
