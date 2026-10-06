@@ -20,7 +20,7 @@ const HERO_SLIDES = [
   }
 ];
 
-export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlist = [], onToggleWishlist }) {
+export default function GuestHome({ onSelectRoom, onOpenExperienceModal }) {
   const [rooms, setRooms] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('All'); // 'All', 'Featured', 'Antipolo', 'Cainta'
   const [isLoading, setIsLoading] = useState(true);
@@ -314,18 +314,13 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {rooms.map((room) => {
-              const isWishlisted = wishlist.some((w) => w.id === room.id);
-              return (
-                <RoomCard
-                  key={room.id}
-                  room={room}
-                  onSelect={onSelectRoom}
-                  isWishlisted={isWishlisted}
-                  onToggleWishlist={onToggleWishlist}
-                />
-              );
-            })}
+            {rooms.map((room) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                onSelect={onSelectRoom}
+              />
+            ))}
           </div>
         )}
       </div>

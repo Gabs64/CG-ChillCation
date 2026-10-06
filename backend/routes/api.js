@@ -142,6 +142,27 @@ router.get('/rooms/:id', async (req, res) => {
   }
 });
 
+// Get booked date ranges for a room (for public availability calendar)
+router.get('/rooms/:id/booked-dates', async (req, res) => {
+  try {
+    const roomId = req.params.id;
+    const bookings = await all(
+      `SELECT check_in, check_out, booking_status 
+       FROM bookings 
+       WHERE room_id = ? 
+       AND booking_status IN ('CONFIRMED', 'PENDING_PAYMENT', 'CHECKED_IN')
+       AND check_out >= date('now', '-30 days')
+       ORDER BY check_in ASC`,
+      [roomId]
+    );
+
+    res.json({ success: true, bookedDates: bookings });
+  } catch (error) {
+    console.error('Error in GET /rooms/:id/booked-dates:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Check availability for a specific room and date range
 router.post('/bookings/check-availability', async (req, res) => {
   try {

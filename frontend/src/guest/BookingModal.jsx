@@ -1,8 +1,241 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, User, Phone, Mail, Car, ShieldCheck, CreditCard, QrCode, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Loader2, Download, Sparkles, Plus, Minus, FileText, Check, ShieldAlert } from 'lucide-react';
+import { Calendar, User, Phone, Mail, Car, ShieldCheck, CreditCard, QrCode, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Loader2, Download, Sparkles, Plus, Minus, FileText, Check, ShieldAlert, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import CustomModal from '../shared/CustomModal';
+
+// Interactive Visual Booking Calendar (FSD Section 56)
+function CustomerBookingCalendar({
+  checkIn,
+  checkOut,
+  onSelectRange,
+  bookedDates = [],
+  isLoadingBookedDates = false
+}) {
+  const [currentMonthDate, setCurrentMonthDate] = useState(() => {
+    if (checkIn) {
+      const d = new Date(checkIn);
+      if (!isNaN(d.getTime())) {
+        return new Date(d.getFullYear(), d.getMonth(), 1);
+      }
+    }
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const year = currentMonthDate.getFullYear();
+  const month = currentMonthDate.getMonth();
+
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = new Date(year, month, 1).getDay();
+
+  const handlePrevMonth = () => {
+    const today = new Date();
+    const minMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const prev = new Date(year, month - 1, 1);
+    if (prev >= minMonth) {
+      setCurrentMonthDate(prev);
+    }
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonthDate(new Date(year, month + 1, 1));
+  };
+
+  const formatDate = (day) => {
+    const m = String(month + 1).padStart(2, '0');
+    const d = String(day).padStart(2, '0');
+    return `${year}-${m}-${d}`;
+  };
+
+  const isDateOccupied = (dateStr) => {
+    return bookedDates.some((b) => {
+      return dateStr >= b.check_in && dateStr < b.check_out;
+    });
+  };
+
+  const handleDayClick = (dateStr, isOccupied, isPast) => {
+    if (isPast || isOccupied) return;
+
+    if (!checkIn || (checkIn && checkOut)) {
+      onSelectRange(dateStr, '');
+    } else if (checkIn && !checkOut) {
+      if (dateStr <= checkIn) {
+        onSelectRange(dateStr, '');
+      } else {
+        let hasConflict = false;
+        let curr = new Date(checkIn);
+        const end = new Date(dateStr);
+        while (curr < end) {
+          const currStr = curr.toISOString().split('T')[0];
+          if (isDateOccupied(currStr)) {
+            hasConflict = true;
+            break;
+          }
+          curr.setDate(curr.getDate() + 1);
+        }
+
+        if (hasConflict) {
+          onSelectRange(dateStr, '', 'Selected date range contains occupied days. Please select continuous vacant dates.');
+        } else {
+          onSelectRange(checkIn, dateStr, null);
+        }
+      }
+    }
+  };
+
+  const daysArray = [];
+  for (let i = 0; i < firstDayIndex; i++) {
+    daysArray.push(null);
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    daysArray.push(d);
+  }
+
+  const isCurrentMonthMin = () => {
+    const today = new Date();
+    return year === today.getFullYear() && month === today.getMonth();
+  };
+
+  return (
+    <div className="space-y-4 bg-black/60 p-4 sm:p-5 rounded-3xl border border-white/10 shadow-2xl">
+      {/* Calendar Header with Month Navigation */}
+      <div className="flex items-center justify-between pb-3 border-b border-white/10">
+        <div>
+          <h3 className="text-base sm:text-lg font-black text-white tracking-wide">
+            {monthNames[month]} <span className="text-zinc-400 font-mono text-sm">{year}</span>
+          </h3>
+          <p className="text-[11px] font-mono text-zinc-400">
+            {!checkIn ? 'Select your Check-in date' : !checkOut ? 'Now select your Check-out date' : 'Dates selected. Click any date to reselect.'}
+          </p>
+        </div>
+
+        <div className="flex items-center space-x-1.5">
+          <button
+            type="button"
+            onClick={handlePrevMonth}
+            disabled={isCurrentMonthMin()}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white disabled:opacity-25 disabled:cursor-not-allowed border border-white/10 transition-colors"
+            title="Previous Month"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={handleNextMonth}
+            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 transition-colors"
+            title="Next Month"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Legend Indicator Bar */}
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-[11px] font-mono py-1">
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3 h-3 rounded-md bg-emerald-950 border border-emerald-500/80 shadow-[0_0_8px_rgba(52,211,153,0.4)]" />
+          <span className="text-emerald-400 font-bold">Vacant (Available)</span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3 h-3 rounded-md bg-rose-950 border border-rose-600/80 shadow-[0_0_8px_rgba(244,63,94,0.4)]" />
+          <span className="text-rose-400 font-bold">Occupied (Booked)</span>
+        </div>
+        <div className="flex items-center space-x-1.5">
+          <span className="w-3 h-3 rounded-md bg-white border border-white shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+          <span className="text-white font-bold">Selected Dates</span>
+        </div>
+      </div>
+
+      {/* Days of Week Header */}
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 text-center text-[10px] sm:text-xs font-mono uppercase tracking-widest text-zinc-400 font-bold pt-1">
+        <span>Sun</span>
+        <span>Mon</span>
+        <span>Tue</span>
+        <span>Wed</span>
+        <span>Thu</span>
+        <span>Fri</span>
+        <span>Sat</span>
+      </div>
+
+      {/* Calendar Grid */}
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
+        {daysArray.map((day, idx) => {
+          if (!day) {
+            return <div key={`empty-${idx}`} className="h-12 sm:h-14 rounded-2xl bg-transparent" />;
+          }
+
+          const dateStr = formatDate(day);
+          const isPast = dateStr < todayStr;
+          const isOccupied = !isPast && isDateOccupied(dateStr);
+          const isVacant = !isPast && !isOccupied;
+
+          const isCheckIn = dateStr === checkIn;
+          const isCheckOut = dateStr === checkOut;
+          const isInRange = checkIn && checkOut && dateStr > checkIn && dateStr < checkOut;
+
+          let cellClass = '';
+          let badgeText = '';
+
+          if (isPast) {
+            cellClass = 'bg-white/[0.02] text-zinc-600 border border-transparent cursor-not-allowed opacity-35';
+          } else if (isCheckIn) {
+            cellClass = 'bg-white text-black font-black border-2 border-white shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-105 z-10';
+            badgeText = 'Check-in';
+          } else if (isCheckOut) {
+            cellClass = 'bg-white text-black font-black border-2 border-white shadow-[0_0_15px_rgba(255,255,255,0.8)] scale-105 z-10';
+            badgeText = 'Check-out';
+          } else if (isInRange) {
+            cellClass = 'bg-emerald-500/25 text-emerald-100 border border-emerald-400/40';
+          } else if (isOccupied) {
+            // RED SHADE for occupied dates
+            cellClass = 'bg-rose-950/60 text-rose-300 border border-rose-600/40 cursor-not-allowed opacity-85';
+            badgeText = 'Booked';
+          } else if (isVacant) {
+            // GREEN SHADE for vacant dates
+            cellClass = 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-800/40 hover:border-emerald-400 hover:scale-105 cursor-pointer';
+          }
+
+          return (
+            <button
+              key={dateStr}
+              type="button"
+              disabled={isPast || isOccupied}
+              onClick={() => handleDayClick(dateStr, isOccupied, isPast)}
+              className={`relative h-12 sm:h-14 rounded-2xl flex flex-col items-center justify-center transition-all p-1 select-none ${cellClass}`}
+            >
+              <span className={`text-xs sm:text-sm font-bold leading-none ${isCheckIn || isCheckOut ? 'text-black font-black' : ''}`}>
+                {day}
+              </span>
+
+              {badgeText && (
+                <span className={`text-[8px] sm:text-[9px] font-mono leading-none mt-1 uppercase tracking-tight px-1 py-0.5 rounded font-bold ${
+                  isCheckIn || isCheckOut 
+                    ? 'bg-black text-white' 
+                    : isOccupied 
+                    ? 'text-rose-400' 
+                    : 'text-emerald-400'
+                }`}>
+                  {badgeText}
+                </span>
+              )}
+
+              {isVacant && !isCheckIn && !isCheckOut && (
+                <span className="w-1 h-1 rounded-full bg-emerald-400 mt-1 shadow-[0_0_4px_rgba(52,211,153,0.8)]" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 export default function BookingModal({ room, onClose }) {
   // 6-Step Booking Flow as defined by FSD v2.0 Section 56
@@ -14,9 +247,11 @@ export default function BookingModal({ room, onClose }) {
   // Step 6: Booking Confirmation & QR Code
   const [step, setStep] = useState(1);
 
-  // Step 1: Dates
+  // Step 1: Dates & Booked Dates Availability
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
+  const [bookedDates, setBookedDates] = useState([]);
+  const [isLoadingBookedDates, setIsLoadingBookedDates] = useState(false);
   const [guestCount, setGuestCount] = useState(2);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
   const [isAvailable, setIsAvailable] = useState(false);
@@ -59,10 +294,7 @@ export default function BookingModal({ room, onClose }) {
 
   // Initialize Dates & Settings
   useEffect(() => {
-    const today = new Date();
-    const tomorrow = new Date(Date.now() + 86400000);
-    setCheckIn(today.toISOString().split('T')[0]);
-    setCheckOut(tomorrow.toISOString().split('T')[0]);
+    fetchBookedDates();
 
     // Load available payment methods from room
     if (room && room.payment_methods && room.payment_methods.length > 0) {
@@ -76,7 +308,23 @@ export default function BookingModal({ room, onClose }) {
     // Fetch Inclusions and Policies in background
     fetchInclusions();
     fetchPolicies();
-  }, [room]);
+  }, [room?.id]);
+
+  const fetchBookedDates = async () => {
+    if (!room?.id) return;
+    setIsLoadingBookedDates(true);
+    try {
+      const res = await fetch(`/api/rooms/${room.id}/booked-dates`);
+      const data = await res.json();
+      if (data.bookedDates) {
+        setBookedDates(data.bookedDates);
+      }
+    } catch (err) {
+      console.error('Error fetching booked dates:', err);
+    } finally {
+      setIsLoadingBookedDates(false);
+    }
+  };
 
   const fetchInclusions = async () => {
     setIsLoadingInclusions(true);
@@ -392,40 +640,58 @@ export default function BookingModal({ room, onClose }) {
           {/* ================= STEP 1: DATES & AVAILABILITY ================= */}
           {step === 1 && (
             <div className="space-y-6">
+              
+              {/* Visual Interactive Calendar with Green/Red Shades */}
+              <CustomerBookingCalendar
+                checkIn={checkIn}
+                checkOut={checkOut}
+                bookedDates={bookedDates}
+                isLoadingBookedDates={isLoadingBookedDates}
+                onSelectRange={(newIn, newOut, errMsg = null) => {
+                  setCheckIn(newIn);
+                  setCheckOut(newOut);
+                  setIsAvailable(false);
+                  setAvailabilityMessage(null);
+                  if (errMsg) {
+                    setFormError(errMsg);
+                  } else {
+                    setFormError(null);
+                  }
+                }}
+              />
+
+              {/* Selected Dates Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 block mb-1.5">
-                    Check-in Date (From 2:00 PM)
-                  </label>
-                  <input
-                    type="date"
-                    value={checkIn}
-                    onChange={(e) => {
-                      setCheckIn(e.target.value);
-                      setIsAvailable(false);
-                      setAvailabilityMessage(null);
-                    }}
-                    className="w-full h-12 px-4 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
-                  />
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block mb-1">
+                      Selected Check-in (From 2:00 PM)
+                    </span>
+                    <span className="text-sm sm:text-base font-mono font-bold text-white">
+                      {checkIn ? new Date(checkIn + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Click a green date above'}
+                    </span>
+                  </div>
+                  {checkIn && (
+                    <span className="text-[10px] text-emerald-400 font-mono mt-1">✓ Check-in Verified</span>
+                  )}
                 </div>
 
-                <div>
-                  <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 block mb-1.5">
-                    Check-out Date (Until 12:00 PM)
-                  </label>
-                  <input
-                    type="date"
-                    value={checkOut}
-                    onChange={(e) => {
-                      setCheckOut(e.target.value);
-                      setIsAvailable(false);
-                      setAvailabilityMessage(null);
-                    }}
-                    className="w-full h-12 px-4 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
-                  />
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col justify-between">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block mb-1">
+                      Selected Check-out (Until 12:00 PM)
+                    </span>
+                    <span className="text-sm sm:text-base font-mono font-bold text-white">
+                      {checkOut ? new Date(checkOut + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Click a checkout date'}
+                    </span>
+                  </div>
+                  {checkOut && (
+                    <span className="text-[10px] text-emerald-400 font-mono mt-1">✓ {nights} {nights === 1 ? 'Night' : 'Nights'} Duration</span>
+                  )}
                 </div>
               </div>
 
+              {/* Guests Count Selector */}
               <div>
                 <label className="text-xs font-mono uppercase tracking-wider text-zinc-400 block mb-1.5">
                   Total Guests (Max standard 2 adults + children)
@@ -433,7 +699,7 @@ export default function BookingModal({ room, onClose }) {
                 <select
                   value={guestCount}
                   onChange={(e) => setGuestCount(Number(e.target.value))}
-                  className="w-full h-12 px-4 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40"
+                  className="w-full h-12 px-4 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 cursor-pointer font-medium"
                 >
                   <option value={1}>1 Guest</option>
                   <option value={2}>2 Guests (Standard)</option>
@@ -444,7 +710,7 @@ export default function BookingModal({ room, onClose }) {
 
               {/* Real-time Availability Alert */}
               {availabilityMessage && (
-                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center space-x-2 font-bold">
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center space-x-2 font-bold animate-fade-in">
                   <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
                   <span>{availabilityMessage} ({nights} {nights === 1 ? 'night' : 'nights'} stay)</span>
                 </div>
@@ -454,7 +720,7 @@ export default function BookingModal({ room, onClose }) {
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between">
                 <div>
                   <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Room Subtotal</span>
-                  <span className="text-xs text-zinc-300">₱{roomRate.toLocaleString()} &times; {nights > 0 ? nights : 1} nights</span>
+                  <span className="text-xs text-zinc-300">₱{roomRate.toLocaleString()} &times; {nights > 0 ? nights : 1} {nights === 1 ? 'night' : 'nights'}</span>
                 </div>
                 <span className="text-xl font-black text-white font-mono">₱{roomSubtotal.toLocaleString()}</span>
               </div>

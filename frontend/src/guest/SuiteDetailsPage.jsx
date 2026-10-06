@@ -10,7 +10,6 @@ import GuestNavbar from './GuestNavbar';
 import PhotoGalleryModal from './PhotoGalleryModal';
 import BookingModal from './BookingModal';
 import BookingLookupModal from './BookingLookupModal';
-import WishlistModal from './WishlistModal';
 import GuestExperienceModal from './GuestExperienceModal';
 import SharedFooter from '../shared/SharedFooter';
 
@@ -31,41 +30,8 @@ export default function SuiteDetailsPage({ currentUser }) {
   const [showGalleryLightbox, setShowGalleryLightbox] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showLookupModal, setShowLookupModal] = useState(false);
-  const [showWishlistModal, setShowWishlistModal] = useState(false);
   const [showExperienceModal, setShowExperienceModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-
-  // Wishlist State
-  const [wishlist, setWishlist] = useState(() => {
-    try {
-      const saved = localStorage.getItem(WISHLIST_KEY);
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(WISHLIST_KEY, JSON.stringify(wishlist));
-    } catch (e) {
-      console.error(e);
-    }
-  }, [wishlist]);
-
-  const isWishlisted = room ? wishlist.some((r) => r.id === room.id) : false;
-
-  const handleToggleWishlist = () => {
-    if (!room) return;
-    setWishlist((prev) => {
-      const exists = prev.some((r) => r.id === room.id);
-      if (exists) {
-        return prev.filter((r) => r.id !== room.id);
-      } else {
-        return [...prev, room];
-      }
-    });
-  };
 
   // Fetch Room Details
   useEffect(() => {
@@ -128,8 +94,6 @@ export default function SuiteDetailsPage({ currentUser }) {
       <div className="min-h-screen bg-[#09090b] text-[#e4e4e7] flex flex-col">
         <GuestNavbar
           onOpenBookingsLookup={() => setShowLookupModal(true)}
-          onOpenWishlist={() => setShowWishlistModal(true)}
-          wishlistCount={wishlist.length}
           onOpenExperienceModal={() => setShowExperienceModal(true)}
         />
         <div className="flex-1 flex flex-col items-center justify-center space-y-4 px-4">
@@ -150,8 +114,6 @@ export default function SuiteDetailsPage({ currentUser }) {
       <div className="min-h-screen bg-[#09090b] text-[#e4e4e7] flex flex-col">
         <GuestNavbar
           onOpenBookingsLookup={() => setShowLookupModal(true)}
-          onOpenWishlist={() => setShowWishlistModal(true)}
-          wishlistCount={wishlist.length}
           onOpenExperienceModal={() => setShowExperienceModal(true)}
         />
         <div className="flex-1 max-w-lg mx-auto px-4 flex flex-col items-center justify-center text-center space-y-6 py-20">
@@ -209,8 +171,6 @@ export default function SuiteDetailsPage({ currentUser }) {
       {/* Top Navbar */}
       <GuestNavbar
         onOpenBookingsLookup={() => setShowLookupModal(true)}
-        onOpenWishlist={() => setShowWishlistModal(true)}
-        wishlistCount={wishlist.length}
         onOpenExperienceModal={() => setShowExperienceModal(true)}
       />
 
@@ -229,7 +189,7 @@ export default function SuiteDetailsPage({ currentUser }) {
             <span className="text-white font-bold truncate max-w-[200px]">{room.room_name}</span>
           </div>
 
-          {/* Quick Actions: Share, Wishlist */}
+          {/* Quick Actions: Share */}
           <div className="flex items-center space-x-2">
             <button
               onClick={handleShare}
@@ -237,20 +197,7 @@ export default function SuiteDetailsPage({ currentUser }) {
               title="Share Suite"
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>{copySuccess ? 'Link Copied!' : 'Share'}</span>
-            </button>
-
-            <button
-              onClick={handleToggleWishlist}
-              className={`h-9 px-3.5 rounded-xl border text-xs font-bold flex items-center space-x-1.5 transition-all ${
-                isWishlisted
-                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
-                  : 'bg-white/5 hover:bg-white/10 border-white/10 text-zinc-300 hover:text-white'
-              }`}
-              title="Save to Wishlist"
-            >
-              <Heart className={`w-3.5 h-3.5 ${isWishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
-              <span>{isWishlisted ? 'Saved' : 'Wishlist'}</span>
+              <span>{copySuccess ? 'Link Copied!' : 'Share Suite'}</span>
             </button>
           </div>
         </div>
@@ -830,19 +777,6 @@ export default function SuiteDetailsPage({ currentUser }) {
             setShowLookupModal(false);
             setShowExperienceModal(true);
           }}
-        />
-      )}
-
-      {/* Wishlist Modal */}
-      {showWishlistModal && (
-        <WishlistModal
-          wishlist={wishlist}
-          onRemove={(roomId) => setWishlist((prev) => prev.filter((r) => r.id !== roomId))}
-          onSelectRoom={(r) => {
-            setShowWishlistModal(false);
-            navigate(`/suite/${r.id}`);
-          }}
-          onClose={() => setShowWishlistModal(false)}
         />
       )}
 

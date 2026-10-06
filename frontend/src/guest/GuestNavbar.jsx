@@ -4,8 +4,6 @@ import { Link } from 'react-router-dom';
 
 export default function GuestNavbar({
   onOpenBookingsLookup,
-  onOpenWishlist,
-  wishlistCount = 0,
   onOpenReviews,
   onOpenExperienceModal
 }) {
@@ -37,18 +35,6 @@ export default function GuestNavbar({
           >
             <span>Suites</span>
           </a>
-
-          <button
-            onClick={onOpenWishlist}
-            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center relative border border-transparent hover:border-white/10"
-          >
-            <span>Wishlist</span>
-            {wishlistCount > 0 && (
-              <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-mono font-black bg-rose-500 text-white rounded-full">
-                {wishlistCount}
-              </span>
-            )}
-          </button>
 
           <button
             onClick={onOpenBookingsLookup}

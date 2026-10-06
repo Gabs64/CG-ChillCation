@@ -1,7 +1,7 @@
 import React from 'react';
 import { MapPin, Maximize2, ArrowRight, Heart, Sparkles, Images } from 'lucide-react';
 
-export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlist }) {
+export default function RoomCard({ room, onSelect }) {
   const mainImage = room.images && room.images.length > 0
     ? room.images[0]
     : 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80';
@@ -38,20 +38,6 @@ export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlis
             </div>
           )}
         </div>
-
-        {/* Wishlist Heart Button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleWishlist(room);
-          }}
-          aria-label="Save to Wishlist"
-          className="absolute top-3.5 right-3.5 z-20 p-2.5 rounded-full bg-black/60 hover:bg-black/90 border border-white/20 backdrop-blur-md transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg"
-        >
-          <Heart className={`w-4 h-4 transition-colors ${
-            isWishlisted ? 'text-rose-500 fill-rose-500' : 'text-white/80 hover:text-white'
-          }`} />
-        </button>
 
         {/* Bottom Tags: Photo Count & Suite Size */}
         <div className="absolute bottom-3.5 left-3.5 flex items-center space-x-2 z-10">
