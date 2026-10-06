@@ -7,7 +7,7 @@ import {
   SwitchCamera, ExternalLink, RotateCcw, ArrowRight, Bed, Grid, Tag, Globe, Phone, Mail
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
-import CustomModal from '../shared/CustomModal';
+import CustomModal, { ConfirmModal } from '../shared/CustomModal';
 
 const formatDate = (d) => {
   const year = d.getFullYear();
@@ -153,6 +153,19 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newUserName, setNewUserName] = useState('');
+
+  // 12. Universal Custom Confirmation Modal State (replaces browser confirm)
+  const [confirmModalConfig, setConfirmModalConfig] = useState({
+    isOpen: false,
+    title: '',
+    subtitle: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    variant: 'danger',
+    onConfirm: null,
+    isLoading: false
+  });
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('password123');
   const [newUserRole, setNewUserRole] = useState('STAFF');
@@ -881,18 +894,50 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
     }
   };
 
-  const handleDeactivateRoom = async (roomId) => {
-    if (!window.confirm('Are you sure you want to delete/deactivate this room?')) return;
-    try {
-      await fetch(`/api/owner/rooms/${roomId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      await fetchRooms();
-      await fetchCalendarData();
-    } catch (err) {
-      console.error(err);
-    }
+  const handleDeactivateRoom = (room) => {
+    const roomId = room?.id || room;
+    const roomName = room?.room_name ? ` "${room.room_name}"` : '';
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'Delete Suite',
+      subtitle: 'Suite Inventory Control',
+      message: `Are you sure you want to delete and deactivate${roomName}? This will remove it from the master reservation calendar and room catalog.`,
+      confirmText: 'Delete Suite',
+      cancelText: 'Cancel',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmModalConfig((prev) => ({ ...prev, isLoading: true }));
+        try {
+          await fetch(`/api/owner/rooms/${roomId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          await fetchRooms();
+          await fetchCalendarData();
+        } catch (err) {
+          console.error(err);
+        } finally {
+          setConfirmModalConfig({ isOpen: false, isLoading: false });
+        }
+      }
+    });
+  };
+
+  const handleConfirmDeleteReview = (expId, guestName) => {
+    setConfirmModalConfig({
+      isOpen: true,
+      title: 'Delete Review',
+      subtitle: 'Guest Experiences',
+      message: `Are you sure you want to permanently delete the review from ${guestName || 'this guest'}?`,
+      confirmText: 'Delete Review',
+      cancelText: 'Cancel',
+      variant: 'danger',
+      onConfirm: async () => {
+        setConfirmModalConfig((prev) => ({ ...prev, isLoading: true }));
+        await handleReviewStatus(expId, 'DELETE');
+        setConfirmModalConfig({ isOpen: false, isLoading: false });
+      }
+    });
   };
 
 
@@ -2569,8 +2614,8 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                         <span>Edit Suite</span>
                       </button>
                       <button
-                        onClick={() => handleDeactivateRoom(room.id)}
-                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs"
+                        onClick={() => handleDeactivateRoom(room)}
+                        className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs transition-colors"
                         title="Delete Suite"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -2770,9 +2815,9 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                         </>
                       )}
                       <button
-                        onClick={() => handleReviewStatus(exp.id, 'DELETE')}
-                        className="p-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 text-xs"
-                        title="Delete"
+                        onClick={() => handleConfirmDeleteReview(exp.id, exp.guest_name)}
+                        className="p-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 text-xs transition-colors"
+                        title="Delete Review"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -3281,6 +3326,20 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
           </div>
         </form>
       </CustomModal>
+
+      {/* ================= MODAL 6: UNIVERSAL CONFIRMATION MODAL ================= */}
+      <ConfirmModal
+        isOpen={confirmModalConfig.isOpen}
+        onClose={() => setConfirmModalConfig({ isOpen: false })}
+        onConfirm={confirmModalConfig.onConfirm}
+        title={confirmModalConfig.title}
+        subtitle={confirmModalConfig.subtitle}
+        message={confirmModalConfig.message}
+        confirmText={confirmModalConfig.confirmText}
+        cancelText={confirmModalConfig.cancelText}
+        variant={confirmModalConfig.variant}
+        isLoading={confirmModalConfig.isLoading}
+      />
 
     </div>
   );

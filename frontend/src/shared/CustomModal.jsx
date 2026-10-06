@@ -134,3 +134,5 @@ export default function CustomModal({
     </div>
   );
 }
+
+export { default as ConfirmModal } from './ConfirmModal';
