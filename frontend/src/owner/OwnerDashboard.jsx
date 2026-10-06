@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   DollarSign, Users, UserPlus, ShieldCheck, MapPin, Eye, EyeOff, FileText, CheckCircle2,
   Lock, Loader2, AlertCircle, Sparkles, Plus, Edit2, Trash2, Star, Check, X, ShieldAlert,
-  Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2
+  Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2, Upload, Camera
 } from 'lucide-react';
 
 export default function OwnerDashboard({ token, activeTab: externalActiveTab, setActiveTab: setExternalActiveTab }) {
@@ -29,17 +29,8 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   const [roomFormFeatured, setRoomFormFeatured] = useState(false);
   const [roomFormStatus, setRoomFormStatus] = useState('AVAILABLE');
   const [roomFormImages, setRoomFormImages] = useState([]);
-  const [newImageUrl, setNewImageUrl] = useState('');
   const [roomFormPaymentMethods, setRoomFormPaymentMethods] = useState(['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
-
-  // Quick photo presets for fast suite creation
-  const PHOTO_PRESETS = [
-    { label: 'Master Suite', url: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80' },
-    { label: 'Minimalist Bed', url: 'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80' },
-    { label: 'Executive Villa', url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80' },
-    { label: 'Modern Lounge', url: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80' },
-    { label: 'Balcony View', url: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80' },
-  ];
+  const fileInputRef = useRef(null);
 
   // 3. Inclusions State (Section 13-14)
   const [inclusions, setInclusions] = useState([]);
@@ -220,13 +211,53 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
       setRoomFormDescription('Luxury 35sqm minimalist suite.');
       setRoomFormFeatured(false);
       setRoomFormStatus('AVAILABLE');
-      setRoomFormImages([
-        'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
-        'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80'
-      ]);
+      setRoomFormImages([]);
       setRoomFormPaymentMethods(['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
     }
     setShowRoomModal(true);
+  };
+
+  const handleDevicePhotoUpload = (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.onload = () => {
+          const MAX_WIDTH = 1600;
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height = Math.round((height * MAX_WIDTH) / width);
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width = Math.round((width * MAX_HEIGHT) / height);
+              height = MAX_HEIGHT;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setRoomFormImages((prev) => [...prev, compressedDataUrl]);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    if (e.target) e.target.value = '';
   };
 
   const handleSaveRoom = async (e) => {
@@ -241,10 +272,11 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
       return;
     }
 
-    const finalImages = roomFormImages && roomFormImages.length > 0 ? roomFormImages : [
-      'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
-      'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80'
-    ];
+    if (!roomFormImages || roomFormImages.length === 0) {
+      setRoomSaveError('Please upload at least 1 photo of the suite from your device.');
+      setIsSavingRoom(false);
+      return;
+    }
 
     const payload = {
       roomName: trimmedName,
@@ -253,7 +285,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
       description: roomFormDescription,
       isFeatured: roomFormFeatured,
       status: roomFormStatus,
-      images: finalImages,
+      images: roomFormImages,
       paymentMethods: roomFormPaymentMethods
     };
 
@@ -1100,73 +1132,85 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 </div>
               </div>
 
-              {/* Photo Manager (Section 23 - Minimum 2 photos) */}
-              <div className="space-y-2.5 pt-2 border-t border-white/10">
+              {/* Photo Manager (Device Only - No URL Link Needed) */}
+              <div className="space-y-3 pt-2 border-t border-white/10">
                 <div className="flex items-center justify-between">
-                  <label className="text-zinc-300 font-bold block font-mono">
-                    Room Photos ({roomFormImages.length})
-                  </label>
-                  <span className="text-[10px] text-zinc-400">At least 2 photos recommended</span>
-                </div>
-
-                {/* Quick Presets */}
-                <div className="space-y-1">
-                  <span className="text-[10px] font-mono text-zinc-400 block">⚡ Quick Photo Presets:</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {PHOTO_PRESETS.map((p, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => {
-                          if (!roomFormImages.includes(p.url)) {
-                            setRoomFormImages([...roomFormImages, p.url]);
-                          }
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] text-zinc-300 font-medium transition-colors"
-                      >
-                        + {p.label}
-                      </button>
-                    ))}
+                  <div>
+                    <label className="text-zinc-200 font-bold block font-mono text-xs">
+                      Suite Photos from Device ({roomFormImages.length}) *
+                    </label>
+                    <span className="text-[10px] text-zinc-400">Upload photos directly from your phone or computer</span>
                   </div>
+                  {roomFormImages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add More Photos</span>
+                    </button>
+                  )}
                 </div>
 
-                <div className="flex gap-2 pt-1">
-                  <input
-                    type="url"
-                    placeholder="Or paste custom image URL (https://...)"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    className="flex-1 h-9 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (newImageUrl.trim()) {
-                        setRoomFormImages([...roomFormImages, newImageUrl.trim()]);
-                        setNewImageUrl('');
-                      }
-                    }}
-                    className="px-3.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-colors"
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  multiple
+                  onChange={handleDevicePhotoUpload}
+                  className="hidden"
+                />
+
+                {/* Upload Dropzone */}
+                {roomFormImages.length === 0 ? (
+                  <label
+                    onClick={() => fileInputRef.current?.click()}
+                    className="border-2 border-dashed border-white/20 hover:border-amber-400/60 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-black/40 hover:bg-white/5 transition-all group"
                   >
-                    Add URL
-                  </button>
-                </div>
+                    <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <span className="font-bold text-white text-xs">Tap to Select Photos from Device</span>
+                    <span className="text-[10px] text-zinc-400 mt-1">Supports JPG, PNG, WEBP &bull; You can select multiple files</span>
+                  </label>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                      {roomFormImages.map((img, idx) => (
+                        <div key={idx} className="relative group rounded-2xl overflow-hidden h-24 border border-white/20 bg-black/60 shadow-lg">
+                          <img src={img} alt={`Suite photo ${idx + 1}`} className="w-full h-full object-cover" />
+                          
+                          {/* Cover badge on first image */}
+                          {idx === 0 ? (
+                            <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black shadow-md">
+                              Cover Photo
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const reordered = [img, ...roomFormImages.filter((_, i) => i !== idx)];
+                                setRoomFormImages(reordered);
+                              }}
+                              className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/75 text-zinc-300 opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-black transition-all"
+                            >
+                              Make Cover
+                            </button>
+                          )}
 
-                {roomFormImages.length > 0 && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
-                    {roomFormImages.map((img, idx) => (
-                      <div key={idx} className="relative group rounded-xl overflow-hidden h-16 border border-white/20 bg-black/40">
-                        <img src={img} alt="preview" className="w-full h-full object-cover" />
-                        <button
-                          type="button"
-                          onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
-                          className="absolute top-1 right-1 p-1 bg-black/80 rounded text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                          title="Remove Photo"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
+                          {/* Delete Photo */}
+                          <button
+                            type="button"
+                            onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
+                            className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-rose-500 rounded-lg text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                            title="Delete Photo"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
