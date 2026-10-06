@@ -353,99 +353,85 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
     }
   };
 
+  const ownerNavTabs = [
+    { id: 'revenue', label: 'Revenue Analytics', desc: 'Financial Overview', icon: DollarSign },
+    { id: 'rooms', label: 'Room Management', desc: 'Suites & Pricing', icon: Layers },
+    { id: 'inclusions', label: 'Inclusions Config', desc: 'Add-ons & Amenities', icon: Sliders },
+    { id: 'policies', label: 'Rules & Policies', desc: 'House Guidelines', icon: FileText },
+    { id: 'experiences', label: 'Guest Reviews & Approval', desc: 'Moderation Queue', icon: Star, badge: guestExpData?.pending?.length > 0 ? guestExpData.pending.length : null },
+    { id: 'users', label: 'Staff Accounts', desc: 'Roles & Access', icon: Users },
+    { id: 'settings', label: 'Settings & Audit Log', desc: 'System & Security', icon: Settings },
+  ];
+
   return (
-    <div className="space-y-6 pb-16">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch lg:items-start pb-16">
       
-      {/* ================= OWNER EXECUTIVE SUB-NAV ================= */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4 overflow-x-auto no-scrollbar gap-2">
-        <div className="flex items-center space-x-1 sm:space-x-2">
+      {/* ================= OWNER EXECUTIVE SIDEBAR NAV ================= */}
+      <aside className="w-full lg:w-72 xl:w-80 flex-shrink-0 lg:sticky lg:top-28 z-20">
+        <div className="liquid-glass rounded-3xl p-3 sm:p-4 border border-white/10 shadow-2xl backdrop-blur-2xl space-y-3">
           
-          <button
-            onClick={() => setActiveTab('revenue')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'revenue'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <DollarSign className="w-3.5 h-3.5" />
-            <span>Revenue Analytics</span>
-          </button>
+          <div className="px-3 py-2 border-b border-white/5 hidden lg:flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-300 block">
+                Executive Console
+              </span>
+              <span className="text-[9px] font-mono text-zinc-500 block uppercase">
+                Owner Controls
+              </span>
+            </div>
+            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 font-bold border border-white/10">
+              PORTAL
+            </span>
+          </div>
 
-          <button
-            onClick={() => setActiveTab('rooms')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'rooms'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            <span>Room Management</span>
-          </button>
+          <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 no-scrollbar">
+            {ownerNavTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-auto lg:w-full px-3.5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center justify-between gap-3 group text-left ${
+                    isActive
+                      ? 'bg-white text-black shadow-lg shadow-white/10 scale-[1.01]'
+                      : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 hover:border-white/15'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isActive ? 'bg-black text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white group-hover:bg-white/10'
+                    }`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block truncate font-bold text-[11px] sm:text-xs">{tab.label}</span>
+                      <span className={`hidden lg:block text-[9px] font-mono normal-case tracking-normal truncate ${
+                        isActive ? 'text-zinc-600 font-medium' : 'text-zinc-500 group-hover:text-zinc-400'
+                      }`}>
+                        {tab.desc}
+                      </span>
+                    </div>
+                  </div>
 
-          <button
-            onClick={() => setActiveTab('inclusions')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'inclusions'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Inclusions Config</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('policies')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'policies'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span>Rules & Policies</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('experiences')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'experiences'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Star className="w-3.5 h-3.5" />
-            <span>Guest Reviews & Approval</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('users')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'users'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>Staff Accounts</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('settings')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'settings'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Settings className="w-3.5 h-3.5" />
-            <span>Settings & Audit Log</span>
-          </button>
-
+                  {tab.badge ? (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold flex-shrink-0 ${
+                      isActive
+                        ? 'bg-black text-amber-300'
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </nav>
         </div>
-      </div>
+      </aside>
+
+      {/* ================= ACTIVE TAB MAIN CONTENT ================= */}
+      <div className="flex-1 min-w-0 space-y-6">
 
       {/* ================= TAB 1: REVENUE ANALYTICS ================= */}
       {activeTab === 'revenue' && (
@@ -930,6 +916,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
           </div>
         </div>
       )}
+      </div>
 
       {/* ================= ROOM MODAL (Add / Edit Suite with Photos & Payment Methods) ================= */}
       {showRoomModal && (

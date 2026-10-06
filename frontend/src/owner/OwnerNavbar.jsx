@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 export default function OwnerNavbar({ currentUser, onLogout }) {
   return (
     <header className="sticky top-0 z-40 w-full liquid-glass border-b border-white/10 bg-[#09090b]/85 backdrop-blur-2xl transition-all duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      <div className="max-w-[1550px] mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
         
         {/* Brand Logo */}
         <Link 
