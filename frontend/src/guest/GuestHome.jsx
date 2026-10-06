@@ -109,11 +109,6 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
             <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/40 to-black/30" />
             
             <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-12 max-w-3xl space-y-3 z-20">
-              <span className="inline-flex items-center space-x-2 text-xs font-mono font-bold tracking-widest text-zinc-300 uppercase px-3 py-1 rounded-full bg-black/60 border border-white/15 backdrop-blur-md w-fit">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <span>G's Luxury Booking Experience v2.0</span>
-              </span>
-
               <h1 className="text-3xl sm:text-5xl font-black text-white tracking-tight leading-none uppercase">
                 {slide.title}
               </h1>

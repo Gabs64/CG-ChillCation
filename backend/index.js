@@ -24,8 +24,8 @@ app.use('/api', apiRouter);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    app: "G's Booking System - CG Chillcation",
-    version: '1.0',
+    app: 'CG Chillcation Booking System',
+    version: 'Alpha-Test v1.1',
     deployment: 'Railway'
   });
 });
@@ -34,7 +34,7 @@ app.get('/api/health', (req, res) => {
 seedDatabase().then(() => {
   app.listen(PORT, () => {
     console.log(`====================================================`);
-    console.log(` G'S BOOKING SYSTEM - CG CHILLCATION API SERVER`);
+    console.log(` CG CHILLCATION API SERVER - Alpha-Test v1.1`);
     console.log(` Ready for Railway Deployment`);
     console.log(` Server running on http://localhost:${PORT}`);
     console.log(` API Health Check: http://localhost:${PORT}/api/health`);

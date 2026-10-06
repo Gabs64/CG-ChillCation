@@ -25,9 +25,6 @@ export default function GuestNavbar({
             <span className="text-base sm:text-lg font-black tracking-wider text-white uppercase block leading-none group-hover:text-zinc-200 transition-colors whitespace-nowrap">
               CG Chillcation
             </span>
-            <span className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase block mt-0.5">
-              G's Booking System v2.0
-            </span>
           </div>
         </Link>
 
@@ -36,20 +33,18 @@ export default function GuestNavbar({
           
           <a
             href="#rooms-section"
-            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap bg-white text-black shadow-md shadow-white/10 flex items-center justify-center space-x-1.5 hover:bg-zinc-200 transition-all"
+            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap bg-white text-black shadow-md shadow-white/10 flex items-center justify-center hover:bg-zinc-200 transition-all"
           >
-            <Home className="w-3.5 h-3.5" />
             <span>Suites</span>
           </a>
 
           <button
             onClick={onOpenWishlist}
-            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center space-x-1.5 relative border border-transparent hover:border-white/10"
+            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center relative border border-transparent hover:border-white/10"
           >
-            <Heart className={`w-3.5 h-3.5 ${wishlistCount > 0 ? 'text-rose-400 fill-rose-400' : ''}`} />
             <span>Wishlist</span>
             {wishlistCount > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-[10px] font-mono font-black bg-rose-500 text-white rounded-full">
+              <span className="ml-1.5 px-1.5 py-0.5 text-[10px] font-mono font-black bg-rose-500 text-white rounded-full">
                 {wishlistCount}
               </span>
             )}
@@ -57,17 +52,15 @@ export default function GuestNavbar({
 
           <button
             onClick={onOpenBookingsLookup}
-            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center space-x-1.5 border border-transparent hover:border-white/10"
+            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center border border-transparent hover:border-white/10"
           >
-            <Search className="w-3.5 h-3.5" />
             <span>My Booking</span>
           </button>
 
           <a
             href="#guest-experiences-section"
-            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center space-x-1.5 border border-transparent hover:border-white/10"
+            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center border border-transparent hover:border-white/10"
           >
-            <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400/20" />
             <span>Reviews</span>
           </a>
 
@@ -75,9 +68,8 @@ export default function GuestNavbar({
             href="https://m.me/cgchillcation"
             target="_blank"
             rel="noopener noreferrer"
-            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center space-x-1.5 border border-transparent hover:border-white/10"
+            className="h-10 px-3.5 sm:px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-300 hover:text-white hover:bg-white/5 transition-all duration-300 flex items-center justify-center border border-transparent hover:border-white/10"
           >
-            <MessageCircle className="w-3.5 h-3.5 text-blue-400" />
             <span>Chat</span>
           </a>
 
