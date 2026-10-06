@@ -273,5 +273,25 @@ export const initDb = async () => {
     )
   `);
 
+  // 17. Safe Column Migrations for Existing Tables
+  try {
+    const roomCols = await all('PRAGMA table_info(rooms)');
+    const colNames = roomCols.map((c) => c.name);
+    if (!colNames.includes('is_featured')) {
+      await run('ALTER TABLE rooms ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0');
+    }
+    if (!colNames.includes('google_maps_url')) {
+      await run('ALTER TABLE rooms ADD COLUMN google_maps_url TEXT');
+    }
+    if (!colNames.includes('status')) {
+      await run("ALTER TABLE rooms ADD COLUMN status TEXT NOT NULL DEFAULT 'AVAILABLE'");
+    }
+    if (!colNames.includes('updated_at')) {
+      await run('ALTER TABLE rooms ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
+    }
+  } catch (migErr) {
+    console.warn('Migration check notice:', migErr.message);
+  }
+
   console.log('Database v2.0 tables initialized successfully.');
 };
