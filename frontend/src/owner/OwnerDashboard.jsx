@@ -786,6 +786,34 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
   };
 
   // Handlers for Room Management
+  const handleToggleFeaturedRoom = async (room, e) => {
+    if (e) e.stopPropagation();
+    const newFeatured = !room.is_featured;
+    
+    // Optimistic UI update
+    setRooms(prev => prev.map(r => r.id === room.id ? { ...r, is_featured: newFeatured } : r));
+
+    try {
+      const res = await fetch(`/api/owner/rooms/${room.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ isFeatured: newFeatured })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        // Rollback
+        setRooms(prev => prev.map(r => r.id === room.id ? { ...r, is_featured: !newFeatured } : r));
+        alert(data.error || 'Failed to update featured suite status.');
+      } else {
+        fetchAuditLogs();
+      }
+    } catch (err) {
+      console.error('Error toggling featured status:', err);
+      // Rollback
+      setRooms(prev => prev.map(r => r.id === room.id ? { ...r, is_featured: !newFeatured } : r));
+    }
+  };
+
   const handleOpenRoomModal = (room = null) => {
     setRoomSaveError('');
     setIsSavingRoom(false);
@@ -2719,25 +2747,57 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                 {rooms.map((room) => (
                   <div
                     key={room.id}
-                    className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-4 flex flex-col justify-between shadow-xl"
+                    className={`p-5 rounded-3xl border space-y-4 flex flex-col justify-between shadow-xl transition-all ${
+                      room.is_featured
+                        ? 'bg-amber-950/15 border-amber-400/30 shadow-amber-500/5'
+                        : 'bg-black/60 border-white/10'
+                    }`}
                   >
                     <div>
                       {room.images && room.images.length > 0 && (
-                        <div className="w-full h-40 rounded-2xl overflow-hidden mb-3 border border-white/10 relative">
-                          <img src={room.images[0]} alt={room.room_name} className="w-full h-full object-cover" />
-                          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 text-[10px] font-mono text-white">
+                        <div className="w-full h-44 rounded-2xl overflow-hidden mb-3 border border-white/10 relative group">
+                          <img src={room.images[0]} alt={room.room_name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          
+                          {/* Photo Count Badge */}
+                          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 text-[10px] font-mono text-white backdrop-blur-md">
                             📸 {room.images.length} photos
                           </span>
+
+                          {/* Top Left: Quick Featured Toggle Badge/Button */}
+                          <button
+                            type="button"
+                            onClick={(e) => handleToggleFeaturedRoom(room, e)}
+                            className={`absolute top-2.5 left-2.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center space-x-1.5 backdrop-blur-md transition-all shadow-lg ${
+                              room.is_featured
+                                ? 'bg-amber-400 text-black shadow-amber-400/30 hover:bg-amber-300'
+                                : 'bg-black/70 hover:bg-black text-zinc-300 hover:text-white border border-white/20'
+                            }`}
+                            title={room.is_featured ? 'Featured on Home (Click to disable)' : 'Click to feature on home page'}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${room.is_featured ? 'bg-black animate-pulse' : 'bg-zinc-500'}`} />
+                            <span>{room.is_featured ? 'Featured Suite' : 'Set Featured'}</span>
+                          </button>
                         </div>
                       )}
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-lg font-black text-white">{room.room_name}</h3>
-                        {room.is_featured && (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-black flex items-center">
-                            <span>Featured</span>
-                          </span>
-                        )}
+
+                      {/* Header Row with Room Name & Featured Button */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <h3 className="text-lg font-black text-white truncate">{room.room_name}</h3>
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleFeaturedRoom(room, e)}
+                          className={`px-3 py-1 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center space-x-1.5 transition-all shrink-0 ${
+                            room.is_featured
+                              ? 'bg-amber-400 text-black hover:bg-amber-300 shadow-md shadow-amber-400/20'
+                              : 'bg-white/5 hover:bg-white/15 text-zinc-400 hover:text-white border border-white/10'
+                          }`}
+                          title={room.is_featured ? 'Click to disable Featured Suite' : 'Click to enable Featured Suite'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${room.is_featured ? 'bg-black animate-pulse' : 'bg-zinc-600'}`} />
+                          <span>{room.is_featured ? 'Featured' : 'Not Featured'}</span>
+                        </button>
                       </div>
+
                       <div className="flex items-center space-x-2 text-xs text-zinc-400 mb-2">
                         <MapPin className="w-3.5 h-3.5" />
                         <span>{room.location}</span>
@@ -3439,16 +3499,26 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 items-center">
-              <label className="flex items-center space-x-2 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={roomFormFeatured}
-                  onChange={(e) => setRoomFormFeatured(e.target.checked)}
-                  className="w-4 h-4 rounded text-black bg-black border-white/30"
-                />
-                <span className="font-bold text-white">Featured Suite</span>
-              </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
+              <button
+                type="button"
+                onClick={() => setRoomFormFeatured(!roomFormFeatured)}
+                className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                  roomFormFeatured
+                    ? 'bg-amber-400/20 border-amber-400/50 text-amber-300'
+                    : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                }`}
+              >
+                <div className="flex items-center space-x-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${roomFormFeatured ? 'bg-amber-400 animate-pulse' : 'bg-zinc-600'}`} />
+                  <span className="font-bold">Featured Suite</span>
+                </div>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                  roomFormFeatured ? 'bg-amber-400 text-black' : 'bg-white/10 text-zinc-400'
+                }`}>
+                  {roomFormFeatured ? 'ENABLED' : 'DISABLED'}
+                </span>
+              </button>
 
               <div>
                 <label className="text-zinc-400 font-mono block mb-1">Status</label>
