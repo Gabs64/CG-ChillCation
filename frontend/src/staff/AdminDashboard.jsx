@@ -409,33 +409,18 @@ export default function AdminDashboard({ token, currentUser }) {
 
   const handleScannedResult = async (decodedText) => {
     const ref = extractReferenceCode(decodedText);
-    if (!ref) return;
+    if (!ref) {
+      setQrScanError('Could not recognize a valid reference code from this QR.');
+      return;
+    }
 
     const now = Date.now();
-    // 3-second cooldown throttle to prevent duplicate rapid scans
-    if (now - lastScanTimestampRef.current < 3000) {
+    if (now - lastScanTimestampRef.current < 2500) {
       return;
     }
     lastScanTimestampRef.current = now;
 
-    playBeep();
-    setScanSuccessFeedback(true);
     setScannedRefInput(ref);
-
-    // 3-second visual countdown
-    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
-    setCooldownCountdown(3);
-    cooldownTimerRef.current = setInterval(() => {
-      setCooldownCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(cooldownTimerRef.current);
-          setScanSuccessFeedback(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-
     await handleLookupQR(ref);
   };
 
@@ -558,13 +543,19 @@ export default function AdminDashboard({ token, currentUser }) {
       const data = await res.json();
 
       if (!res.ok) {
-        setQrScanError(data.error || 'No matching booking found for this QR code.');
+        // Red error state: Keep camera running, display error alert
+        setQrScanError(data.error || 'No matching booking found for this QR code. Please try another voucher.');
         setScannedBooking(null);
       } else {
+        // Verified Success: stop camera and proceed to details view
+        await stopCameraScanner();
+        playBeep();
         setScannedBooking(data.booking);
+        setQrScanError(null);
       }
     } catch (err) {
-      setQrScanError('Failed to verify QR Code.');
+      setQrScanError('Failed to verify QR Code. Please check connection.');
+      setScannedBooking(null);
     } finally {
       setIsScanning(false);
     }
@@ -921,308 +912,23 @@ export default function AdminDashboard({ token, currentUser }) {
 
       {/* ================= TAB 2: QR CODE SCANNER (Section 34-37) ================= */}
       {activeTab === 'qr_scanner' && (
-        <div className="space-y-6 max-w-3xl mx-auto">
-          
-          {/* Main Scanner Control Center */}
-          <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-white/15 text-center space-y-6 shadow-2xl">
-            
-            {/* Header */}
-            <div className="space-y-2">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-white via-zinc-200 to-zinc-400 text-black shadow-xl shadow-white/10 mb-2">
-                <QrCode className="w-7 h-7" />
-              </div>
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Live QR Code Scanner
-              </h2>
-              <p className="text-xs text-zinc-400 max-w-lg mx-auto leading-relaxed">
-                Scan guest digital booking vouchers in real-time with your device camera, upload screenshot images, or search by reference code.
-              </p>
-            </div>
-
-            {/* Scanner Mode Switcher */}
-            <div className="inline-flex p-1.5 rounded-2xl bg-black/60 border border-white/10 gap-1 max-w-md mx-auto">
-              <button
-                onClick={() => {
-                  setScannerMode('camera');
-                  setQrScanError(null);
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
-                  scannerMode === 'camera'
-                    ? 'bg-white text-black shadow-md'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <Video className="w-3.5 h-3.5" />
-                <span>Live Camera</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setScannerMode('upload');
-                  setQrScanError(null);
-                  stopCameraScanner();
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
-                  scannerMode === 'upload'
-                    ? 'bg-white text-black shadow-md'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <Upload className="w-3.5 h-3.5" />
-                <span>Upload Image</span>
-              </button>
-
-              <button
-                onClick={() => {
-                  setScannerMode('manual');
-                  setQrScanError(null);
-                  stopCameraScanner();
-                }}
-                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
-                  scannerMode === 'manual'
-                    ? 'bg-white text-black shadow-md'
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-              >
-                <Search className="w-3.5 h-3.5" />
-                <span>Reference</span>
-              </button>
-            </div>
-
-            {/* MODE 1: LIVE CAMERA SCANNER */}
-            {scannerMode === 'camera' && (
-              <div className="space-y-4 max-w-md mx-auto">
-                <div className="relative w-full aspect-square max-w-[340px] mx-auto rounded-3xl overflow-hidden bg-black/90 border border-white/20 shadow-2xl flex items-center justify-center">
-                  
-                  {/* Camera Video Viewport */}
-                  <div id="qr-reader-viewport" className="w-full h-full" />
-
-                  {/* Laser & Reticle Overlay when Camera Active */}
-                  {isCameraActive && (
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-8">
-                      {/* Targeting Corners */}
-                      <div className="relative w-full h-full border-2 border-white/20 rounded-2xl overflow-hidden">
-                        {/* 4 Corner Accents */}
-                        <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-lg" />
-                        <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-lg" />
-                        <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-lg" />
-                        <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-lg" />
-
-                        {/* Animated Laser Scan Line */}
-                        <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-lg shadow-emerald-500/50 animate-scan-laser" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Placeholder when Camera is inactive */}
-                  {!isCameraActive && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-6 space-y-4 text-center bg-black/80 backdrop-blur-sm">
-                      <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400">
-                        <Camera className="w-8 h-8" />
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-white block">Camera Inactive</span>
-                        <span className="text-xs text-zinc-400 block mt-1">
-                          Click below to start live stream scanning
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isStartingCamera}
-                        onClick={() => startCameraScanner()}
-                        className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center space-x-2 shadow-xl hover:scale-105 transition-all"
-                      >
-                        {isStartingCamera ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Video className="w-4 h-4" />
-                        )}
-                        <span>{isStartingCamera ? 'Opening Camera...' : 'Launch Live Camera'}</span>
-                      </button>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* Camera Controls Bar */}
-                {isCameraActive && (
-                  <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
-                    {cameraDevices.length > 1 && (
-                      <select
-                        value={selectedCameraId}
-                        onChange={(e) => handleSwitchCamera(e.target.value)}
-                        className="px-3 py-2 rounded-xl bg-black/80 border border-white/20 text-white text-xs font-mono focus:outline-none"
-                      >
-                        {cameraDevices.map((cam, idx) => (
-                          <option key={cam.id} value={cam.id}>
-                            {cam.label || `Camera ${idx + 1}`}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={stopCameraScanner}
-                      className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-colors"
-                    >
-                      <VideoOff className="w-3.5 h-3.5" />
-                      <span>Stop Camera</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* MODE 2: UPLOAD IMAGE VOUCHER */}
-            {scannerMode === 'upload' && (
-              <div className="space-y-4 max-w-md mx-auto">
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-                
-                {/* Hidden container for file decoder */}
-                <div id="qr-reader-file-temp" className="hidden" />
-
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="w-full p-8 rounded-3xl border-2 border-dashed border-white/20 hover:border-white/50 bg-black/40 hover:bg-white/5 cursor-pointer transition-all flex flex-col items-center justify-center space-y-3 group"
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                    {isScanning ? (
-                      <Loader2 className="w-6 h-6 text-white animate-spin" />
-                    ) : (
-                      <Upload className="w-6 h-6 text-zinc-400 group-hover:text-white" />
-                    )}
-                  </div>
-                  <div>
-                    <span className="text-sm font-bold text-white block">
-                      {isScanning ? 'Decoding QR Code...' : 'Upload Voucher Image or Screenshot'}
-                    </span>
-                    <span className="text-xs text-zinc-400 block mt-1">
-                      Click to browse PNG, JPG, or WebP files
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold uppercase tracking-wider group-hover:bg-white group-hover:text-black transition-colors"
-                  >
-                    Select File
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* MODE 3: MANUAL REFERENCE INPUT & USB BARCODE */}
-            {scannerMode === 'manual' && (
-              <div className="space-y-4 max-w-md mx-auto">
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleLookupQR(scannedRefInput);
-                  }}
-                  className="flex gap-2"
-                >
-                  <input
-                    type="text"
-                    placeholder="e.g. CGC-20261006-1001"
-                    value={scannedRefInput}
-                    onChange={(e) => setScannedRefInput(e.target.value)}
-                    className="flex-1 h-12 px-4 rounded-xl bg-black/80 border border-white/20 text-white text-xs font-mono uppercase focus:outline-none focus:border-white/50"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isScanning}
-                    className="liquid-btn-primary px-5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5"
-                  >
-                    {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                    <span>Lookup</span>
-                  </button>
-                </form>
-              </div>
-            )}
-
-            {/* Quick Demo QR Links */}
-            <div className="pt-2 border-t border-white/10 flex flex-wrap justify-center items-center gap-2 text-xs">
-              <span className="text-zinc-500 font-mono text-[11px]">Quick Samples:</span>
-              <button
-                onClick={() => {
-                  setScannedRefInput('CGC-20261006-1001');
-                  handleLookupQR('CGC-20261006-1001');
-                }}
-                className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 font-mono text-[11px] border border-white/10 transition-colors"
-              >
-                CGC-20261006-1001 (Room 01)
-              </button>
-              <button
-                onClick={() => {
-                  setScannedRefInput('CGC-20261006-1002');
-                  handleLookupQR('CGC-20261006-1002');
-                }}
-                className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 font-mono text-[11px] border border-white/10 transition-colors"
-              >
-                CGC-20261006-1002 (Room 08)
-              </button>
-            </div>
-
-          </div>
-
-          {/* Cooldown & Success Notification Banner */}
-          {scanSuccessFeedback && (
-            <div className="p-4 rounded-2xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 text-xs flex items-center justify-between shadow-2xl animate-fade-in">
-              <div className="flex items-center space-x-3">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 animate-pulse" />
-                <div>
-                  <span className="font-bold text-sm block text-white">QR Code Verified Successfully!</span>
-                  <span className="font-mono text-emerald-300/90 text-xs">
-                    Voucher reference <strong className="text-white underline">{scannedRefInput}</strong> matched in database.
-                  </span>
-                </div>
-              </div>
-              {cooldownCountdown > 0 && (
-                <div className="px-3 py-1.5 rounded-xl bg-black/60 border border-emerald-400/30 text-emerald-300 font-mono text-xs flex items-center space-x-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>Cooldown: Ready in {cooldownCountdown}s</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Scanner Cooldown Standalone Indicator (if success banner is hidden but cooldown active) */}
-          {!scanSuccessFeedback && cooldownCountdown > 0 && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between animate-fade-in font-mono">
-              <span>Scanner cooldown active to prevent double scans...</span>
-              <span className="font-bold">{cooldownCountdown}s</span>
-            </div>
-          )}
-
-          {/* Error Banner */}
-          {qrScanError && (
-            <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2 animate-fade-in">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{qrScanError}</span>
-            </div>
-          )}
-
-          {/* QR Scanned Booking Result Display (Comprehensive Dossier) */}
-          {scannedBooking && (
-            <div className="p-6 sm:p-8 rounded-3xl bg-black/70 border border-white/20 space-y-6 animate-fade-in shadow-2xl backdrop-blur-xl">
+        <div className="space-y-6 max-w-4xl mx-auto">
+          {scannedBooking ? (
+            /* QR Scanned Booking Result Display (Full Dedicated Verified Details Dossier) */
+            <div className="space-y-6 animate-fade-in">
               {/* Header Bar */}
-              <div className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-white/10">
+              <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
                 <div className="space-y-1">
                   <div className="flex items-center space-x-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                      VERIFIED VOUCHER
+                    <span className="px-3 py-1 rounded-full text-[10px] font-mono font-black tracking-widest uppercase bg-emerald-500 text-black shadow-lg shadow-emerald-500/30 flex items-center space-x-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>VERIFIED VOUCHER</span>
                     </span>
                     <span className="text-xs text-zinc-400 font-mono">
-                      Ref: {scannedBooking.reference_number}
+                      Ref: <strong className="text-white font-mono">{scannedBooking.reference_number}</strong>
                     </span>
                   </div>
-                  <h3 className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                  <h3 className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight mt-1">
                     {scannedBooking.room_name || `Suite Room #${scannedBooking.room_id}`}
                   </h3>
                   <span className="text-xs text-zinc-400 block">
@@ -1230,7 +936,7 @@ export default function AdminDashboard({ token, currentUser }) {
                   </span>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <span className={`px-4 py-2 rounded-2xl text-xs font-mono font-black uppercase tracking-wider ${
                     scannedBooking.check_in_status === 'CHECKED_IN'
                       ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/30'
@@ -1245,43 +951,47 @@ export default function AdminDashboard({ token, currentUser }) {
                     onClick={() => {
                       setScannedBooking(null);
                       setScannedRefInput('');
+                      if (scannerMode === 'camera') {
+                        setTimeout(() => startCameraScanner(), 100);
+                      }
                     }}
-                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-all"
+                    className="liquid-btn-primary px-4 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
                   >
-                    Scan Next
+                    <Camera className="w-4 h-4" />
+                    <span>Scan Another QR Code</span>
                   </button>
                 </div>
               </div>
 
               {/* Grid 1: Guest Information & Stay Schedule */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Guest Profile Card */}
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                <div className="p-6 rounded-3xl bg-black/60 border border-white/10 space-y-4">
                   <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">
-                    Primary Guest & Contact
+                    Primary Guest & Contact Profile
                   </span>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between items-center">
+                  <div className="space-y-2 text-xs">
+                    <div className="flex justify-between items-center py-1 border-b border-white/5">
                       <span className="text-zinc-400">Guest Name:</span>
-                      <strong className="text-white text-sm">{scannedBooking.guest_name}</strong>
+                      <strong className="text-white text-base">{scannedBooking.guest_name}</strong>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center py-1 border-b border-white/5">
                       <span className="text-zinc-400">Total Guests:</span>
                       <span className="text-white font-mono">{scannedBooking.guest_count} Person(s)</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center py-1 border-b border-white/5">
                       <span className="text-zinc-400">Contact Number:</span>
-                      <span className="text-emerald-400 font-mono font-bold">{scannedBooking.contact_number}</span>
+                      <span className="text-emerald-400 font-mono font-bold text-sm">{scannedBooking.contact_number}</span>
                     </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-zinc-400">Email:</span>
-                      <span className="text-zinc-300 font-mono truncate max-w-[180px]">{scannedBooking.email}</span>
+                    <div className="flex justify-between items-center py-1 border-b border-white/5">
+                      <span className="text-zinc-400">Email Address:</span>
+                      <span className="text-zinc-300 font-mono truncate max-w-[200px]">{scannedBooking.email || 'N/A'}</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center py-1 border-b border-white/5">
                       <span className="text-zinc-400">Vehicle / Parking:</span>
                       <span className="text-white font-mono">{scannedBooking.vehicle || 'None'}</span>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center py-1">
                       <span className="text-zinc-400">Primary Guest Age:</span>
                       <span className="text-white font-mono">{scannedBooking.age || '18+'} yrs old</span>
                     </div>
@@ -1289,32 +999,39 @@ export default function AdminDashboard({ token, currentUser }) {
                 </div>
 
                 {/* Stay Schedule Card */}
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                <div className="p-6 rounded-3xl bg-black/60 border border-white/10 space-y-4">
                   <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">
                     Stay Duration & Timings
                   </span>
-                  <div className="space-y-2 text-xs">
-                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                  <div className="space-y-3 text-xs">
+                    <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between">
                       <div>
                         <span className="text-[10px] text-zinc-400 uppercase font-mono block">Check-In Date</span>
                         <strong className="text-white text-sm font-mono">{scannedBooking.check_in}</strong>
                       </div>
-                      <span className="text-xs font-mono text-emerald-400">From 2:00 PM</span>
+                      <span className="text-xs font-mono text-emerald-400 font-bold">Standard: 2:00 PM</span>
                     </div>
 
-                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                    <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between">
                       <div>
                         <span className="text-[10px] text-zinc-400 uppercase font-mono block">Check-Out Date</span>
                         <strong className="text-white text-sm font-mono">{scannedBooking.check_out}</strong>
                       </div>
-                      <span className="text-xs font-mono text-zinc-400">By 12:00 PM</span>
+                      <span className="text-xs font-mono text-zinc-400 font-bold">Standard: 12:00 PM</span>
+                    </div>
+
+                    <div className="p-3.5 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-between">
+                      <span className="text-zinc-400">Booking Status:</span>
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                        {scannedBooking.booking_status}
+                      </span>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Grid 2: Financial & Payment Status Matrix */}
-              <div className="p-5 rounded-2xl bg-white/5 border border-white/15 space-y-4">
+              <div className="p-6 sm:p-8 rounded-3xl bg-black/60 border border-white/15 space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-xs font-mono uppercase tracking-widest text-zinc-300 font-black">
                     Financial & Payment Breakdown
@@ -1325,23 +1042,23 @@ export default function AdminDashboard({ token, currentUser }) {
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
-                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                  <div className="p-4 rounded-2xl bg-black/50 border border-white/10">
                     <span className="text-[10px] text-zinc-400 uppercase block">Total Stay</span>
-                    <strong className="text-white text-sm">
+                    <strong className="text-white text-base">
                       ₱{(Number(scannedBooking.breakdown?.total_amount || scannedBooking.amount || 0)).toLocaleString()}
                     </strong>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                  <div className="p-4 rounded-2xl bg-black/50 border border-white/10">
                     <span className="text-[10px] text-emerald-400 uppercase block">Down Payment Paid</span>
-                    <strong className="text-emerald-300 text-sm">
+                    <strong className="text-emerald-300 text-base">
                       ₱{(Number(scannedBooking.breakdown?.down_payment || scannedBooking.amount || 0)).toLocaleString()}
                     </strong>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                  <div className="p-4 rounded-2xl bg-black/50 border border-white/10">
                     <span className="text-[10px] text-zinc-400 uppercase block">Remaining Balance</span>
-                    <strong className={`text-sm ${
+                    <strong className={`text-base ${
                       Number(scannedBooking.breakdown?.remaining_balance || 0) <= 0
                         ? 'text-emerald-400'
                         : 'text-amber-400'
@@ -1350,9 +1067,9 @@ export default function AdminDashboard({ token, currentUser }) {
                     </strong>
                   </div>
 
-                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                  <div className="p-4 rounded-2xl bg-black/50 border border-white/10">
                     <span className="text-[10px] text-zinc-400 uppercase block">Security Deposit (₱1,000)</span>
-                    <strong className={`text-sm uppercase ${
+                    <strong className={`text-base uppercase ${
                       scannedBooking.securityDeposit?.payment_status === 'PAID'
                         ? 'text-emerald-400'
                         : scannedBooking.securityDeposit?.payment_status === 'REFUNDED'
@@ -1365,7 +1082,7 @@ export default function AdminDashboard({ token, currentUser }) {
                 </div>
 
                 {/* Security Deposit Quick Collect / Refund Action */}
-                <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <span className="text-xs font-bold text-white block">Refundable Security Deposit (₱1,000)</span>
                     <span className="text-[11px] text-zinc-400 font-mono">
@@ -1375,14 +1092,26 @@ export default function AdminDashboard({ token, currentUser }) {
 
                   {scannedBooking.securityDeposit?.payment_status !== 'PAID' ? (
                     <button
-                      onClick={() => handleSecurityDepositAction(scannedBooking.id, 'CONFIRM_PAYMENT')}
+                      onClick={async () => {
+                        await handleSecurityDepositAction(scannedBooking.id, 'CONFIRM_PAYMENT');
+                        setScannedBooking(prev => prev ? {
+                          ...prev,
+                          securityDeposit: { ...prev.securityDeposit, payment_status: 'PAID' }
+                        } : null);
+                      }}
                       className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-amber-400 text-black hover:bg-amber-300 transition-all shadow-md self-start sm:self-auto"
                     >
                       Collect ₱1,000 Deposit
                     </button>
                   ) : (
                     <button
-                      onClick={() => handleSecurityDepositAction(scannedBooking.id, 'MARK_REFUNDED')}
+                      onClick={async () => {
+                        await handleSecurityDepositAction(scannedBooking.id, 'MARK_REFUNDED');
+                        setScannedBooking(prev => prev ? {
+                          ...prev,
+                          securityDeposit: { ...prev.securityDeposit, payment_status: 'REFUNDED' }
+                        } : null);
+                      }}
                       className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-blue-500/20 text-blue-300 border border-blue-500/40 hover:bg-blue-500/30 self-start sm:self-auto"
                     >
                       Mark ₱1,000 Refunded
@@ -1405,7 +1134,10 @@ export default function AdminDashboard({ token, currentUser }) {
                 <div className="flex flex-wrap gap-2">
                   {scannedBooking.check_in_status === 'NOT_CHECKED_IN' && (
                     <button
-                      onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_IN')}
+                      onClick={async () => {
+                        await handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_IN');
+                        setScannedBooking(prev => prev ? { ...prev, check_in_status: 'CHECKED_IN' } : null);
+                      }}
                       className="liquid-btn-primary px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center space-x-2 shadow-2xl hover:scale-105 transition-all"
                     >
                       <CheckCircle className="w-5 h-5 text-white" />
@@ -1415,7 +1147,10 @@ export default function AdminDashboard({ token, currentUser }) {
 
                   {scannedBooking.check_in_status === 'CHECKED_IN' && (
                     <button
-                      onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_OUT')}
+                      onClick={async () => {
+                        await handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_OUT');
+                        setScannedBooking(prev => prev ? { ...prev, check_in_status: 'CHECKED_OUT' } : null);
+                      }}
                       className="px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider bg-rose-600 text-white hover:bg-rose-500 transition-all flex items-center space-x-2 shadow-2xl hover:scale-105"
                     >
                       <LogOut className="w-5 h-5" />
@@ -1425,8 +1160,276 @@ export default function AdminDashboard({ token, currentUser }) {
                 </div>
               </div>
             </div>
-          )}
+          ) : (
+            /* Main Scanner Control Center */
+            <div className="space-y-6">
+              <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-white/15 text-center space-y-6 shadow-2xl">
+                {/* Header */}
+                <div className="space-y-2">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-white via-zinc-200 to-zinc-400 text-black shadow-xl shadow-white/10 mb-2">
+                    <QrCode className="w-7 h-7" />
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                    Live QR Code Scanner
+                  </h2>
+                  <p className="text-xs text-zinc-400 max-w-lg mx-auto leading-relaxed">
+                    Scan guest digital booking vouchers in real-time with your device camera, upload screenshot images, or search by reference code.
+                  </p>
+                </div>
 
+                {/* Scanner Mode Switcher */}
+                <div className="inline-flex p-1.5 rounded-2xl bg-black/60 border border-white/10 gap-1 max-w-md mx-auto">
+                  <button
+                    onClick={() => {
+                      setScannerMode('camera');
+                      setQrScanError(null);
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
+                      scannerMode === 'camera'
+                        ? 'bg-white text-black shadow-md'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Live Camera</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setScannerMode('upload');
+                      setQrScanError(null);
+                      stopCameraScanner();
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
+                      scannerMode === 'upload'
+                        ? 'bg-white text-black shadow-md'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Image</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      setScannerMode('manual');
+                      setQrScanError(null);
+                      stopCameraScanner();
+                    }}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center space-x-2 ${
+                      scannerMode === 'manual'
+                        ? 'bg-white text-black shadow-md'
+                        : 'text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Reference</span>
+                  </button>
+                </div>
+
+                {/* Error Banner when Red State / Failed Scan */}
+                {qrScanError && (
+                  <div className="p-4 rounded-2xl bg-rose-500/20 border-2 border-rose-500 text-rose-200 text-xs flex items-center justify-between shadow-2xl animate-fade-in text-left">
+                    <div className="flex items-center space-x-3">
+                      <AlertCircle className="w-5 h-5 text-rose-400 flex-shrink-0 animate-bounce" />
+                      <div>
+                        <strong className="block text-sm text-white font-bold">QR Verification Failed</strong>
+                        <span>{qrScanError}</span>
+                      </div>
+                    </div>
+                    {scannerMode === 'camera' && isCameraActive && (
+                      <span className="px-3 py-1 rounded-xl bg-black/60 border border-rose-400/40 text-[11px] font-mono text-rose-300">
+                        Camera active & ready to scan
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* MODE 1: LIVE CAMERA SCANNER */}
+                {scannerMode === 'camera' && (
+                  <div className="space-y-4 max-w-md mx-auto">
+                    <div className={`relative w-full aspect-square max-w-[340px] mx-auto rounded-3xl overflow-hidden bg-black/90 border-2 transition-all shadow-2xl flex items-center justify-center ${
+                      qrScanError ? 'border-rose-500 shadow-rose-500/20' : 'border-white/20'
+                    }`}>
+                      
+                      {/* Camera Video Viewport */}
+                      <div id="qr-reader-viewport" className="w-full h-full" />
+
+                      {/* Laser & Reticle Overlay when Camera Active */}
+                      {isCameraActive && (
+                        <div className="absolute inset-0 pointer-events-none flex items-center justify-center p-8">
+                          {/* Targeting Corners */}
+                          <div className="relative w-full h-full border-2 border-white/20 rounded-2xl overflow-hidden">
+                            {/* 4 Corner Accents */}
+                            <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-white rounded-tl-lg" />
+                            <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-white rounded-tr-lg" />
+                            <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-white rounded-bl-lg" />
+                            <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-white rounded-br-lg" />
+
+                            {/* Animated Laser Scan Line */}
+                            <div className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent shadow-lg shadow-emerald-500/50 animate-scan-laser" />
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Placeholder when Camera is inactive */}
+                      {!isCameraActive && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 space-y-4 text-center bg-black/80 backdrop-blur-sm">
+                          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-zinc-400">
+                            <Camera className="w-8 h-8" />
+                          </div>
+                          <div>
+                            <span className="text-sm font-bold text-white block">Camera Inactive</span>
+                            <span className="text-xs text-zinc-400 block mt-1">
+                              Click below to start live stream scanning
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            disabled={isStartingCamera}
+                            onClick={() => startCameraScanner()}
+                            className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center space-x-2 shadow-xl hover:scale-105 transition-all"
+                          >
+                            {isStartingCamera ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Video className="w-4 h-4" />
+                            )}
+                            <span>{isStartingCamera ? 'Opening Camera...' : 'Launch Live Camera'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                    </div>
+
+                    {/* Camera Controls Bar */}
+                    {isCameraActive && (
+                      <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
+                        {cameraDevices.length > 1 && (
+                          <select
+                            value={selectedCameraId}
+                            onChange={(e) => handleSwitchCamera(e.target.value)}
+                            className="px-3 py-2 rounded-xl bg-black/80 border border-white/20 text-white text-xs font-mono focus:outline-none"
+                          >
+                            {cameraDevices.map((cam, idx) => (
+                              <option key={cam.id} value={cam.id}>
+                                {cam.label || `Camera ${idx + 1}`}
+                              </option>
+                            ))}
+                          </select>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={stopCameraScanner}
+                          className="px-4 py-2 rounded-xl bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-colors"
+                        >
+                          <VideoOff className="w-3.5 h-3.5" />
+                          <span>Stop Camera</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* MODE 2: UPLOAD IMAGE VOUCHER */}
+                {scannerMode === 'upload' && (
+                  <div className="space-y-4 max-w-md mx-auto">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                    
+                    {/* Hidden container for file decoder */}
+                    <div id="qr-reader-file-temp" className="hidden" />
+
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-full p-8 rounded-3xl border-2 border-dashed border-white/20 hover:border-white/50 bg-black/40 hover:bg-white/5 cursor-pointer transition-all flex flex-col items-center justify-center space-y-3 group"
+                    >
+                      <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        {isScanning ? (
+                          <Loader2 className="w-6 h-6 text-white animate-spin" />
+                        ) : (
+                          <Upload className="w-6 h-6 text-zinc-400 group-hover:text-white" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-sm font-bold text-white block">
+                          {isScanning ? 'Decoding QR Code...' : 'Upload Voucher Image or Screenshot'}
+                        </span>
+                        <span className="text-xs text-zinc-400 block mt-1">
+                          Click to browse PNG, JPG, or WebP files
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="px-4 py-2 rounded-xl bg-white/10 text-white text-xs font-bold uppercase tracking-wider group-hover:bg-white group-hover:text-black transition-colors"
+                      >
+                        Select File
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* MODE 3: MANUAL REFERENCE INPUT & USB BARCODE */}
+                {scannerMode === 'manual' && (
+                  <div className="space-y-4 max-w-md mx-auto">
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleLookupQR(scannedRefInput);
+                      }}
+                      className="flex gap-2"
+                    >
+                      <input
+                        type="text"
+                        placeholder="e.g. CGC-20261006-1001"
+                        value={scannedRefInput}
+                        onChange={(e) => setScannedRefInput(e.target.value)}
+                        className="flex-1 h-12 px-4 rounded-xl bg-black/80 border border-white/20 text-white text-xs font-mono uppercase focus:outline-none focus:border-white/50"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isScanning}
+                        className="liquid-btn-primary px-5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5"
+                      >
+                        {isScanning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                        <span>Lookup</span>
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* Quick Demo QR Links */}
+                <div className="pt-2 border-t border-white/10 flex flex-wrap justify-center items-center gap-2 text-xs">
+                  <span className="text-zinc-500 font-mono text-[11px]">Quick Samples:</span>
+                  <button
+                    onClick={() => {
+                      setScannedRefInput('CGC-20261006-1001');
+                      handleLookupQR('CGC-20261006-1001');
+                    }}
+                    className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 font-mono text-[11px] border border-white/10 transition-colors"
+                  >
+                    CGC-20261006-1001 (Room 01)
+                  </button>
+                  <button
+                    onClick={() => {
+                      setScannedRefInput('CGC-20261006-1002');
+                      handleLookupQR('CGC-20261006-1002');
+                    }}
+                    className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-zinc-300 font-mono text-[11px] border border-white/10 transition-colors"
+                  >
+                    CGC-20261006-1002 (Room 08)
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
         </div>
       )}
 
