@@ -380,22 +380,69 @@ export default function AdminDashboard({ token, currentUser }) {
     }
   };
 
-  // Audio Feedback using Web Audio API
-  const playBeep = () => {
+  // Futuristic Multi-Tone Crystal Chime for QR Scan Success
+  const playScanSuccessSound = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+
+      // Dynamics Compressor for studio-quality crispness
+      const compressor = ctx.createDynamicsCompressor();
+      compressor.threshold.setValueAtTime(-12, ctx.currentTime);
+      compressor.knee.setValueAtTime(30, ctx.currentTime);
+      compressor.ratio.setValueAtTime(10, ctx.currentTime);
+      compressor.attack.setValueAtTime(0.001, ctx.currentTime);
+      compressor.release.setValueAtTime(0.2, ctx.currentTime);
+      compressor.connect(ctx.destination);
+
+      // Sci-fi 4-tone harmonic chime (D5 -> A5 -> D6 -> A6 sparkle)
+      const notes = [
+        { freq: 587.33, start: 0.00, dur: 0.12, type: 'sine', vol: 0.22 },
+        { freq: 880.00, start: 0.06, dur: 0.15, type: 'triangle', vol: 0.25 },
+        { freq: 1174.66, start: 0.12, dur: 0.22, type: 'sine', vol: 0.30 },
+        { freq: 1760.00, start: 0.16, dur: 0.35, type: 'sine', vol: 0.18 },
+      ];
+
+      notes.forEach(({ freq, start, dur, type, vol }) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+        osc.frequency.exponentialRampToValueAtTime(freq * 1.025, ctx.currentTime + start + dur * 0.4);
+
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + start);
+        gain.gain.exponentialRampToValueAtTime(vol, ctx.currentTime + start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + start + dur);
+
+        osc.connect(gain);
+        gain.connect(compressor);
+
+        osc.start(ctx.currentTime + start);
+        osc.stop(ctx.currentTime + start + dur);
+      });
+    } catch (e) {
+      console.warn('Audio feedback failed:', e);
+    }
+  };
+
+  // Subtle rejection sound for invalid QR
+  const playScanErrorSound = () => {
     try {
       const AudioCtx = window.AudioContext || window.webkitAudioContext;
       if (!AudioCtx) return;
       const ctx = new AudioCtx();
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      gain.gain.setValueAtTime(0.15, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(220, ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(110, ctx.currentTime + 0.18);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
       osc.connect(gain);
       gain.connect(ctx.destination);
-      osc.start();
-      osc.stop(ctx.currentTime + 0.15);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + 0.18);
     } catch (e) {}
   };
 
@@ -512,6 +559,7 @@ export default function AdminDashboard({ token, currentUser }) {
       await tempScanner.clear();
       await handleScannedResult(decoded);
     } catch (err) {
+      playScanErrorSound();
       setQrScanError('Could not detect a valid QR Code in this image. Please ensure the QR code is clearly visible, or enter the reference number manually.');
     } finally {
       setIsScanning(false);
@@ -543,17 +591,19 @@ export default function AdminDashboard({ token, currentUser }) {
       const data = await res.json();
 
       if (!res.ok) {
-        // Red error state: Keep camera running, display error alert
+        // Red error state: Keep camera running, display error alert and audible cue
+        playScanErrorSound();
         setQrScanError(data.error || 'No matching booking found for this QR code. Please try another voucher.');
         setScannedBooking(null);
       } else {
-        // Verified Success: stop camera and proceed to details view
+        // Verified Success: stop camera, play cool crystal chime and proceed to details view
         await stopCameraScanner();
-        playBeep();
+        playScanSuccessSound();
         setScannedBooking(data.booking);
         setQrScanError(null);
       }
     } catch (err) {
+      playScanErrorSound();
       setQrScanError('Failed to verify QR Code. Please check connection.');
       setScannedBooking(null);
     } finally {
