@@ -1488,22 +1488,19 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
           <div className="space-y-6">
             
             {/* Calendar Control Bar */}
-            <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-xl">
+            <div className="p-4 sm:p-5 rounded-3xl liquid-glass border border-white/15 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-xl">
               <div>
-                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">
-                  Interactive Room Matrix & Timeline
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block font-bold">
+                  Visual Schedule Matrix
                 </span>
-                <h2 className="text-xl sm:text-2xl font-black text-white flex items-center gap-2 mt-0.5">
-                  <span>Master Reservation Calendar</span>
-                  <span className="text-xs font-mono font-normal px-2.5 py-1 rounded-xl bg-white/10 text-zinc-300 border border-white/10">
-                    {MONTH_NAMES[calendarMonth]} {calendarYear}
-                  </span>
+                <h2 className="text-xl sm:text-2xl font-black text-white mt-0.5 tracking-tight">
+                  Master Reservation Calendar
                 </h2>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2.5">
                 {/* Month Navigation */}
-                <div className="flex items-center bg-black/50 p-1 rounded-2xl border border-white/10 space-x-1">
+                <div className="inline-flex items-center bg-black/60 p-1 rounded-2xl border border-white/15 shadow-inner">
                   <button
                     onClick={() => {
                       if (calendarMonth === 0) {
@@ -1513,7 +1510,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                         setCalendarMonth((m) => m - 1);
                       }
                     }}
-                    className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-white transition-colors"
+                    className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
                     title="Previous Month"
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -1525,9 +1522,10 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                       setCalendarMonth(now.getMonth());
                       setCalendarYear(now.getFullYear());
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-white text-black text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-colors"
+                    className="px-3 py-1 rounded-xl text-xs font-bold font-mono text-white hover:bg-white/10 transition-colors whitespace-nowrap"
+                    title="Reset to current month"
                   >
-                    This Month
+                    {MONTH_NAMES[calendarMonth]} {calendarYear}
                   </button>
 
                   <button
@@ -1539,7 +1537,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                         setCalendarMonth((m) => m + 1);
                       }
                     }}
-                    className="p-2 rounded-xl bg-white/5 hover:bg-white/15 text-white transition-colors"
+                    className="w-8 h-8 rounded-xl bg-white/5 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
                     title="Next Month"
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -1547,12 +1545,12 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                 </div>
 
                 {/* View Toggle: Timeline Matrix vs Calendars Per Room */}
-                <div className="flex items-center bg-black/50 p-1 rounded-2xl border border-white/10 space-x-1">
+                <div className="inline-flex items-center bg-black/60 p-1 rounded-2xl border border-white/15 shadow-inner">
                   <button
                     onClick={() => setCalendarSubView('matrix')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all ${
+                    className={`h-8 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all ${
                       calendarSubView === 'matrix'
-                        ? 'bg-white text-black shadow-md'
+                        ? 'bg-white text-black shadow-md font-black'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
@@ -1566,33 +1564,33 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                         setSelectedRoomIdForPerRoom(calendarRooms[0].id);
                       }
                     }}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all ${
+                    className={`h-8 px-3.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all ${
                       calendarSubView === 'per_room'
-                        ? 'bg-white text-black shadow-md'
+                        ? 'bg-white text-black shadow-md font-black'
                         : 'text-zinc-400 hover:text-white hover:bg-white/5'
                     }`}
                   >
                     <Bed className="w-3.5 h-3.5" />
-                    <span>Calendars Per Room</span>
+                    <span>Per Room</span>
                   </button>
                 </div>
 
                 {/* Action Buttons */}
                 <button
                   onClick={() => handleOpenManualBooking()}
-                  className="px-4 py-2.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95"
+                  className="h-10 px-4 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs uppercase tracking-wider flex items-center space-x-1.5 shadow-lg shadow-emerald-500/20 transition-all active:scale-95 whitespace-nowrap"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
                   <span>Add Booking</span>
                 </button>
 
                 <button
                   onClick={fetchCalendarData}
                   disabled={isLoadingCalendar}
-                  className="p-2.5 rounded-2xl bg-white/5 hover:bg-white/10 text-zinc-300 hover:text-white border border-white/10 transition-colors"
+                  className="w-10 h-10 rounded-2xl bg-white/5 hover:bg-white/15 text-zinc-300 hover:text-white border border-white/15 flex items-center justify-center transition-colors flex-shrink-0"
                   title="Refresh Calendar"
                 >
-                  <RefreshCw className={`w-4 h-4 ${isLoadingCalendar ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-4 h-4 ${isLoadingCalendar ? 'animate-spin text-white' : ''}`} />
                 </button>
               </div>
             </div>
@@ -1602,23 +1600,23 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-zinc-500 uppercase font-bold text-[9px] tracking-wider">Legend:</span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block shadow-sm"></span>
                   <span>Direct / Walk-in</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block shadow-sm"></span>
                   <span>Airbnb</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-cyan-500 inline-block shadow-sm"></span>
                   <span>Agoda</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block shadow-sm"></span>
                   <span>Facebook / Chat</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block shadow-sm"></span>
                   <span>Pending Payment</span>
                 </span>
               </div>
@@ -1636,12 +1634,23 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                     <span className="text-xs font-mono text-zinc-400">Loading master timeline matrix...</span>
                   </div>
                 ) : calendarRooms.length === 0 ? (
-                  <div className="text-center py-20 px-4 space-y-3">
-                    <AlertCircle className="w-10 h-10 text-amber-400 mx-auto" />
-                    <h4 className="text-base font-bold text-white">No active suites found</h4>
-                    <p className="text-xs text-zinc-400 max-w-md mx-auto">
-                      Suites created in Room Management will automatically appear here as rows.
-                    </p>
+                  <div className="text-center py-16 px-6 space-y-4 max-w-md mx-auto">
+                    <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto text-amber-400 shadow-lg">
+                      <AlertCircle className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-base font-bold text-white">No Suites Found</h4>
+                      <p className="text-xs text-zinc-400 font-mono">
+                        Suites created in Room Management will automatically appear here as rows.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('rooms')}
+                      className="px-4 py-2 rounded-xl bg-white text-black text-xs font-bold uppercase tracking-wider hover:bg-zinc-200 transition-all inline-flex items-center space-x-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Manage Suites</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="overflow-x-auto max-w-full no-scrollbar">

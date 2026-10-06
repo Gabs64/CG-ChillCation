@@ -84,11 +84,24 @@ export const seedDatabase = async () => {
     }
   }
 
-  // 4. Seed Rooms (Only if explicitly requested with SEED_DEMO_ROOMS=true)
-  if (process.env.SEED_DEMO_ROOMS === 'true') {
+
+
+  // 4. Seed Starting Rooms (if table is empty and not explicitly cleared)
+  if (process.env.CLEAR_EXISTING_ROOMS === 'true') {
+    await run('DELETE FROM rooms');
+    await run('DELETE FROM room_images');
+    await run('DELETE FROM room_payment_methods');
+    await run('DELETE FROM bookings');
+    await run('DELETE FROM booking_inclusions');
+    await run('DELETE FROM booking_payment_breakdown');
+    await run('DELETE FROM booking_policy_acknowledgements');
+    await run('DELETE FROM payments');
+    await run('DELETE FROM security_deposits');
+    console.log('Clean slate: All existing rooms & demo bookings cleared.');
+  } else {
     const existingRooms = await all('SELECT * FROM rooms');
     if (existingRooms.length === 0) {
-      console.log('Seeding demo rooms (SEED_DEMO_ROOMS=true)...');
+      console.log('Seeding initial standard suites...');
 
       const roomImagesPool = [
         'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
@@ -102,7 +115,7 @@ export const seedDatabase = async () => {
       for (let i = 1; i <= 4; i++) {
         const roomNum = `0${i}`;
         const location = i <= 2 ? 'Antipolo' : 'Cainta';
-        const name = `Demo Suite ${roomNum}`;
+        const name = `Suite ${roomNum}`;
         const description = `Luxury minimalist suite located in ${location}.`;
         const price = location === 'Antipolo' ? 2800 : 2500;
 
@@ -126,20 +139,8 @@ export const seedDatabase = async () => {
           );
         }
       }
-      console.log('Demo rooms seeded.');
+      console.log('Initial standard suites seeded.');
     }
-  } else if (process.env.CLEAR_EXISTING_ROOMS === 'true') {
-    // Explicit reset: Delete any old demo rooms
-    await run('DELETE FROM rooms');
-    await run('DELETE FROM room_images');
-    await run('DELETE FROM room_payment_methods');
-    await run('DELETE FROM bookings');
-    await run('DELETE FROM booking_inclusions');
-    await run('DELETE FROM booking_payment_breakdown');
-    await run('DELETE FROM booking_policy_acknowledgements');
-    await run('DELETE FROM payments');
-    await run('DELETE FROM security_deposits');
-    console.log('Clean slate: All existing rooms & demo bookings cleared.');
   }
 
   // 5. Seed Users (Owner, Staff, Customer Support)

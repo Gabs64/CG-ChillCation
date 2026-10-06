@@ -1,12 +1,33 @@
 import sqlite3 from 'sqlite3';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Supports DATABASE_PATH env var for Railway persistent volume or defaults to local dir
-const dbPath = process.env.DATABASE_PATH || path.resolve(__dirname, 'cg_chillcation.db');
+// Supports Railway Persistent Volumes or environment overrides
+let dbPath;
+if (process.env.DATABASE_PATH) {
+  dbPath = process.env.DATABASE_PATH;
+} else if (process.env.RAILWAY_VOLUME_MOUNT_PATH) {
+  dbPath = path.join(process.env.RAILWAY_VOLUME_MOUNT_PATH, 'cg_chillcation.db');
+} else if (fs.existsSync('/data')) {
+  dbPath = '/data/cg_chillcation.db';
+} else {
+  dbPath = path.resolve(__dirname, 'cg_chillcation.db');
+}
+
+// Ensure parent folder exists
+try {
+  const dir = path.dirname(dbPath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+} catch (e) {
+  console.warn('Notice ensuring db directory:', e.message);
+}
+
 const verboseSqlite = sqlite3.verbose();
 
 export const db = new verboseSqlite.Database(dbPath, (err) => {
