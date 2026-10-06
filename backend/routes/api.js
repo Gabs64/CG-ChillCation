@@ -685,9 +685,9 @@ router.patch('/admin/bookings/:id/checkin-status', verifyToken, requireRoles(['S
 
     // Update physical room status
     if (checkInStatus === 'CHECKED_IN') {
-      await run('UPDATE rooms SET status = "CHECKED_IN" WHERE id = ?', [currentBooking.room_id]);
+      await run("UPDATE rooms SET status = 'CHECKED_IN' WHERE id = ?", [currentBooking.room_id]);
     } else if (checkInStatus === 'CHECKED_OUT') {
-      await run('UPDATE rooms SET status = "AVAILABLE" WHERE id = ?', [currentBooking.room_id]);
+      await run("UPDATE rooms SET status = 'AVAILABLE' WHERE id = ?", [currentBooking.room_id]);
     }
 
     await recordAuditLog(
@@ -806,7 +806,7 @@ router.get('/admin/qr/lookup/:ref', verifyToken, requireRoles(['STAFF', 'CUSTOME
 // Master Calendar Data Matrix
 router.get('/admin/calendar', verifyToken, requireRoles(['STAFF', 'CUSTOMER_SUPPORT', 'OWNER']), async (req, res) => {
   try {
-    const rooms = await all('SELECT id, room_name, location, price_per_night, status FROM rooms WHERE status != "DEACTIVATED" ORDER BY id ASC');
+    const rooms = await all("SELECT id, room_name, location, price_per_night, status FROM rooms WHERE status != 'DEACTIVATED' ORDER BY id ASC");
     const bookings = await all(
       `SELECT b.id, b.reference_number, b.room_id, b.guest_name, b.guest_count, b.vehicle, b.contact_number, b.email,
               b.check_in, b.check_out, b.booking_status, b.check_in_status,

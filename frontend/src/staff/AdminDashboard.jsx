@@ -35,8 +35,11 @@ export default function AdminDashboard({ token, currentUser }) {
   const [cameraDevices, setCameraDevices] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [scanSuccessFeedback, setScanSuccessFeedback] = useState(false);
+  const [cooldownCountdown, setCooldownCountdown] = useState(0);
   const html5QrScannerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const lastScanTimestampRef = useRef(0);
+  const cooldownTimerRef = useRef(null);
 
   // Master Calendar State (Section 38, 39, 40)
   const [calendarView, setCalendarView] = useState('month'); // 'month', 'week', 'day'
@@ -261,10 +264,32 @@ export default function AdminDashboard({ token, currentUser }) {
   const handleScannedResult = async (decodedText) => {
     const ref = extractReferenceCode(decodedText);
     if (!ref) return;
+
+    const now = Date.now();
+    // 3-second cooldown throttle to prevent duplicate rapid scans
+    if (now - lastScanTimestampRef.current < 3000) {
+      return;
+    }
+    lastScanTimestampRef.current = now;
+
     playBeep();
     setScanSuccessFeedback(true);
-    setTimeout(() => setScanSuccessFeedback(false), 3000);
     setScannedRefInput(ref);
+
+    // 3-second visual countdown
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    setCooldownCountdown(3);
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldownCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownTimerRef.current);
+          setScanSuccessFeedback(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     await handleLookupQR(ref);
   };
 
@@ -993,16 +1018,32 @@ export default function AdminDashboard({ token, currentUser }) {
 
           </div>
 
-          {/* Success Notification Banner */}
+          {/* Cooldown & Success Notification Banner */}
           {scanSuccessFeedback && (
-            <div className="p-4 rounded-2xl bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 text-xs flex items-center space-x-3 shadow-xl animate-fade-in">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-              <div>
-                <span className="font-bold text-sm block">QR Code Scanned Successfully!</span>
-                <span className="font-mono text-emerald-300/80">
-                  Voucher reference {scannedRefInput} verified.
-                </span>
+            <div className="p-4 rounded-2xl bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 text-xs flex items-center justify-between shadow-2xl animate-fade-in">
+              <div className="flex items-center space-x-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 animate-pulse" />
+                <div>
+                  <span className="font-bold text-sm block text-white">QR Code Verified Successfully!</span>
+                  <span className="font-mono text-emerald-300/90 text-xs">
+                    Voucher reference <strong className="text-white underline">{scannedRefInput}</strong> matched in database.
+                  </span>
+                </div>
               </div>
+              {cooldownCountdown > 0 && (
+                <div className="px-3 py-1.5 rounded-xl bg-black/60 border border-emerald-400/30 text-emerald-300 font-mono text-xs flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                  <span>Cooldown: Ready in {cooldownCountdown}s</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Scanner Cooldown Standalone Indicator (if success banner is hidden but cooldown active) */}
+          {!scanSuccessFeedback && cooldownCountdown > 0 && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center justify-between animate-fade-in font-mono">
+              <span>Scanner cooldown active to prevent double scans...</span>
+              <span className="font-bold">{cooldownCountdown}s</span>
             </div>
           )}
 
@@ -1014,105 +1055,207 @@ export default function AdminDashboard({ token, currentUser }) {
             </div>
           )}
 
-          {/* QR Scanned Booking Result Display (Section 37) */}
+          {/* QR Scanned Booking Result Display (Comprehensive Dossier) */}
           {scannedBooking && (
-            <div className="p-6 rounded-3xl bg-black/60 border border-white/15 space-y-5 animate-fade-in shadow-2xl">
-              <div className="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-white/10">
-                <div>
-                  <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-widest block">Verified Booking</span>
-                  <span className="text-xl font-mono font-black text-white">{scannedBooking.reference_number}</span>
+            <div className="p-6 sm:p-8 rounded-3xl bg-black/70 border border-white/20 space-y-6 animate-fade-in shadow-2xl backdrop-blur-xl">
+              {/* Header Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pb-5 border-b border-white/10">
+                <div className="space-y-1">
+                  <div className="flex items-center space-x-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-widest uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      VERIFIED VOUCHER
+                    </span>
+                    <span className="text-xs text-zinc-400 font-mono">
+                      Ref: {scannedBooking.reference_number}
+                    </span>
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-black text-white font-mono tracking-tight">
+                    {scannedBooking.room_name || `Suite Room #${scannedBooking.room_id}`}
+                  </h3>
+                  <span className="text-xs text-zinc-400 block">
+                    📍 Location: <strong className="text-white">{scannedBooking.location || 'Antipolo / Cainta'}</strong>
+                  </span>
                 </div>
 
-                <div className="flex items-center space-x-2">
-                  <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase ${
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`px-4 py-2 rounded-2xl text-xs font-mono font-black uppercase tracking-wider ${
                     scannedBooking.check_in_status === 'CHECKED_IN'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                      ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/30'
                       : scannedBooking.check_in_status === 'CHECKED_OUT'
-                      ? 'bg-zinc-500/20 text-zinc-400 border border-zinc-500/30'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                      ? 'bg-zinc-700 text-zinc-300'
+                      : 'bg-amber-400 text-black shadow-lg shadow-amber-400/20'
                   }`}>
-                    {scannedBooking.check_in_status}
+                    {scannedBooking.check_in_status === 'CHECKED_IN' ? '✓ IN-HOUSE (CHECKED IN)' : scannedBooking.check_in_status === 'CHECKED_OUT' ? 'CHECKED OUT' : 'NOT CHECKED IN YET'}
                   </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                    Payment: {scannedBooking.payment_status || 'PAID'}
-                  </span>
+
+                  <button
+                    onClick={() => {
+                      setScannedBooking(null);
+                      setScannedRefInput('');
+                    }}
+                    className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-wider transition-all"
+                  >
+                    Scan Next
+                  </button>
                 </div>
               </div>
 
-              {/* Guest & Stay Matrix */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                <div>
-                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Guest Name</span>
-                  <span className="font-bold text-white text-sm">{scannedBooking.guest_name}</span>
-                  <span className="text-zinc-500 block">{scannedBooking.guest_count} Guests</span>
+              {/* Grid 1: Guest Information & Stay Schedule */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Guest Profile Card */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">
+                    Primary Guest & Contact
+                  </span>
+                  <div className="space-y-1.5 text-xs">
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400">Guest Name:</span>
+                      <strong className="text-white text-sm">{scannedBooking.guest_name}</strong>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400">Total Guests:</span>
+                      <span className="text-white font-mono">{scannedBooking.guest_count} Person(s)</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400">Contact Number:</span>
+                      <span className="text-emerald-400 font-mono font-bold">{scannedBooking.contact_number}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400">Email:</span>
+                      <span className="text-zinc-300 font-mono truncate max-w-[180px]">{scannedBooking.email}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400">Vehicle / Parking:</span>
+                      <span className="text-white font-mono">{scannedBooking.vehicle || 'None'}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-zinc-400">Primary Guest Age:</span>
+                      <span className="text-white font-mono">{scannedBooking.age || '18+'} yrs old</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Assigned Suite</span>
-                  <span className="font-bold text-white text-sm">{scannedBooking.room_name}</span>
-                  <span className="text-zinc-500 block">{scannedBooking.location}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Check-in</span>
-                  <span className="font-bold text-white text-sm">{scannedBooking.check_in}</span>
-                  <span className="text-zinc-500 block">From 2:00 PM</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono text-[10px] uppercase block">Check-out</span>
-                  <span className="font-bold text-white text-sm">{scannedBooking.check_out}</span>
-                  <span className="text-zinc-500 block">By 12:00 PM</span>
+
+                {/* Stay Schedule Card */}
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3">
+                  <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">
+                    Stay Duration & Timings
+                  </span>
+                  <div className="space-y-2 text-xs">
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-zinc-400 uppercase font-mono block">Check-In Date</span>
+                        <strong className="text-white text-sm font-mono">{scannedBooking.check_in}</strong>
+                      </div>
+                      <span className="text-xs font-mono text-emerald-400">From 2:00 PM</span>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-black/40 border border-white/5 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] text-zinc-400 uppercase font-mono block">Check-Out Date</span>
+                        <strong className="text-white text-sm font-mono">{scannedBooking.check_out}</strong>
+                      </div>
+                      <span className="text-xs font-mono text-zinc-400">By 12:00 PM</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Security Deposit Verification Box */}
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <span className="text-xs font-bold text-white block">Refundable Security Deposit (₱1,000)</span>
-                  <span className="text-[11px] text-zinc-400 font-mono">
-                    Status: <strong className={`uppercase ${
+              {/* Grid 2: Financial & Payment Status Matrix */}
+              <div className="p-5 rounded-2xl bg-white/5 border border-white/15 space-y-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-mono uppercase tracking-widest text-zinc-300 font-black">
+                    Financial & Payment Breakdown
+                  </span>
+                  <span className="px-3 py-1 rounded-full text-xs font-mono font-bold uppercase bg-white/10 text-white border border-white/20">
+                    Paid via: {scannedBooking.payment_method || 'Online Gateway'}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                    <span className="text-[10px] text-zinc-400 uppercase block">Total Stay</span>
+                    <strong className="text-white text-sm">
+                      ₱{(Number(scannedBooking.breakdown?.total_amount || scannedBooking.amount || 0)).toLocaleString()}
+                    </strong>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                    <span className="text-[10px] text-emerald-400 uppercase block">Down Payment Paid</span>
+                    <strong className="text-emerald-300 text-sm">
+                      ₱{(Number(scannedBooking.breakdown?.down_payment || scannedBooking.amount || 0)).toLocaleString()}
+                    </strong>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                    <span className="text-[10px] text-zinc-400 uppercase block">Remaining Balance</span>
+                    <strong className={`text-sm ${
+                      Number(scannedBooking.breakdown?.remaining_balance || 0) <= 0
+                        ? 'text-emerald-400'
+                        : 'text-amber-400'
+                    }`}>
+                      ₱{(Number(scannedBooking.breakdown?.remaining_balance || 0)).toLocaleString()}
+                    </strong>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-black/50 border border-white/10">
+                    <span className="text-[10px] text-zinc-400 uppercase block">Security Deposit (₱1,000)</span>
+                    <strong className={`text-sm uppercase ${
                       scannedBooking.securityDeposit?.payment_status === 'PAID'
                         ? 'text-emerald-400'
                         : scannedBooking.securityDeposit?.payment_status === 'REFUNDED'
                         ? 'text-blue-400'
                         : 'text-amber-400'
-                    }`}>{scannedBooking.securityDeposit?.payment_status || 'PENDING'}</strong>
-                  </span>
+                    }`}>
+                      {scannedBooking.securityDeposit?.payment_status || 'PENDING'}
+                    </strong>
+                  </div>
                 </div>
 
-                {scannedBooking.securityDeposit?.payment_status !== 'PAID' ? (
-                  <button
-                    onClick={() => handleSecurityDepositAction(scannedBooking.id, 'CONFIRM_PAYMENT')}
-                    className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-amber-400 text-black hover:bg-amber-300 transition-all shadow-md self-start sm:self-auto"
-                  >
-                    Confirm ₱1,000 Deposit
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => handleSecurityDepositAction(scannedBooking.id, 'MARK_REFUNDED')}
-                    className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-blue-500/20 text-blue-300 border border-blue-500/40 hover:bg-blue-500/30 self-start sm:self-auto"
-                  >
-                    Mark ₱1,000 Refunded
-                  </button>
-                )}
+                {/* Security Deposit Quick Collect / Refund Action */}
+                <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-white block">Refundable Security Deposit (₱1,000)</span>
+                    <span className="text-[11px] text-zinc-400 font-mono">
+                      Must be collected upon key handover and inspected upon checkout departure.
+                    </span>
+                  </div>
+
+                  {scannedBooking.securityDeposit?.payment_status !== 'PAID' ? (
+                    <button
+                      onClick={() => handleSecurityDepositAction(scannedBooking.id, 'CONFIRM_PAYMENT')}
+                      className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-amber-400 text-black hover:bg-amber-300 transition-all shadow-md self-start sm:self-auto"
+                    >
+                      Collect ₱1,000 Deposit
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleSecurityDepositAction(scannedBooking.id, 'MARK_REFUNDED')}
+                      className="px-4 py-2 rounded-xl text-xs font-bold uppercase bg-blue-500/20 text-blue-300 border border-blue-500/40 hover:bg-blue-500/30 self-start sm:self-auto"
+                    >
+                      Mark ₱1,000 Refunded
+                    </button>
+                  )}
+                </div>
               </div>
 
-              {/* QR Check-In / Check-Out Execution Actions (Section 35, 36) */}
-              <div className="pt-3 border-t border-white/10 flex flex-wrap gap-3 justify-between items-center">
+              {/* Action Controls Bar: Check-In / Check-Out */}
+              <div className="pt-4 border-t border-white/15 flex flex-wrap gap-3 justify-between items-center">
                 <button
                   type="button"
                   onClick={() => setSelectedBookingForModal(scannedBooking)}
-                  className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/15 flex items-center space-x-1.5 transition-colors"
+                  className="px-5 py-3 rounded-2xl text-xs font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/15 flex items-center space-x-2 transition-colors"
                 >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Full Snapshot</span>
+                  <Eye className="w-4 h-4" />
+                  <span>View Full Snapshot</span>
                 </button>
 
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   {scannedBooking.check_in_status === 'NOT_CHECKED_IN' && (
                     <button
                       onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_IN')}
-                      className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center space-x-2 shadow-xl"
+                      className="liquid-btn-primary px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider flex items-center space-x-2 shadow-2xl hover:scale-105 transition-all"
                     >
-                      <CheckCircle className="w-4 h-4" />
+                      <CheckCircle className="w-5 h-5 text-white" />
                       <span>MARK CHECK-IN</span>
                     </button>
                   )}
@@ -1120,9 +1263,9 @@ export default function AdminDashboard({ token, currentUser }) {
                   {scannedBooking.check_in_status === 'CHECKED_IN' && (
                     <button
                       onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_OUT')}
-                      className="px-6 py-3 rounded-2xl text-xs font-black uppercase tracking-wider bg-rose-500 text-white hover:bg-rose-600 transition-all flex items-center space-x-2 shadow-xl"
+                      className="px-8 py-3.5 rounded-2xl text-xs font-black uppercase tracking-wider bg-rose-600 text-white hover:bg-rose-500 transition-all flex items-center space-x-2 shadow-2xl hover:scale-105"
                     >
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="w-5 h-5" />
                       <span>MARK CHECK-OUT</span>
                     </button>
                   )}
