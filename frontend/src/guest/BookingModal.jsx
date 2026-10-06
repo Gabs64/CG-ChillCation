@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, User, Phone, Mail, Car, ShieldCheck, CreditCard, QrCode, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Loader2, Download, Sparkles, Plus, Minus, FileText, Check, ShieldAlert } from 'lucide-react';
+import { Calendar, User, Phone, Mail, Car, ShieldCheck, CreditCard, QrCode, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Loader2, Download, Sparkles, Plus, Minus, FileText, Check, ShieldAlert } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
+import CustomModal from '../shared/CustomModal';
 
 export default function BookingModal({ room, onClose }) {
   // 6-Step Booking Flow as defined by FSD v2.0 Section 56
@@ -334,20 +335,13 @@ export default function BookingModal({ room, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-3xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 max-h-[92vh] flex flex-col">
-        
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-30 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Progress Stepper (FSD v2.0 Section 56) */}
-        <div className="pb-4 border-b border-white/10 mb-6">
-          <div className="flex items-center justify-between mb-2">
+    <CustomModal
+      isOpen={true}
+      onClose={onClose}
+      size="3xl"
+      customHeader={
+        <div>
+          <div className="flex items-center justify-between mb-2 pr-8">
             <div>
               <span className="text-[10px] text-zinc-400 font-mono tracking-widest uppercase block">
                 Booking Step {step} of 6
@@ -382,14 +376,15 @@ export default function BookingModal({ room, onClose }) {
             ))}
           </div>
         </div>
-
-        {/* Form Error Banner */}
-        {formError && (
-          <div className="p-3.5 mb-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
-            <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-            <span>{formError}</span>
-          </div>
-        )}
+      }
+    >
+      {/* Form Error Banner */}
+      {formError && (
+        <div className="p-3.5 mb-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <span>{formError}</span>
+        </div>
+      )}
 
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto space-y-6 no-scrollbar pr-1">
@@ -983,8 +978,6 @@ export default function BookingModal({ room, onClose }) {
             </button>
           )}
         </div>
-
-      </div>
-    </div>
+    </CustomModal>
   );
 }

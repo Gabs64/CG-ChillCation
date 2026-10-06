@@ -7,6 +7,7 @@ import {
   SwitchCamera, ExternalLink, RotateCcw, ArrowRight, Bed, Grid, Tag, Globe, Phone, Mail
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import CustomModal from '../shared/CustomModal';
 
 const formatDate = (d) => {
   const year = d.getFullYear();
@@ -1965,41 +1966,34 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
             )}
 
             {/* ---------------- MANUAL BOOKING MODAL ---------------- */}
-            {isManualBookingModalOpen && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-                <div className="relative w-full max-w-2xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 space-y-5 max-h-[92vh] flex flex-col">
-                  <button
-                    onClick={() => setIsManualBookingModalOpen(false)}
-                    className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+            <CustomModal
+              isOpen={isManualBookingModalOpen}
+              onClose={() => setIsManualBookingModalOpen(false)}
+              title="Record Manual Booking"
+              subtitle="Direct & OTA Channel Integration"
+              icon={Tag}
+              size="2xl"
+            >
+              <div className="space-y-4">
+                <p className="text-xs text-zinc-400 -mt-2">
+                  Add reservations from Airbnb, Agoda, Facebook Messenger, Walk-ins, or Phone inquiries.
+                </p>
 
-                  <div className="pb-3 border-b border-white/10">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 block font-bold">
-                      Direct & OTA Channel Integration
-                    </span>
-                    <h3 className="text-xl font-black text-white">Record Manual Booking</h3>
-                    <p className="text-xs text-zinc-400 mt-0.5">
-                      Add reservations from Airbnb, Agoda, Facebook Messenger, Walk-ins, or Phone inquiries.
-                    </p>
+                {manualBookingError && (
+                  <div className="p-3.5 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{manualBookingError}</span>
                   </div>
+                )}
 
-                  {manualBookingError && (
-                    <div className="p-3.5 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      <span>{manualBookingError}</span>
-                    </div>
-                  )}
+                {manualBookingSuccess && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                    <span>{manualBookingSuccess}</span>
+                  </div>
+                )}
 
-                  {manualBookingSuccess && (
-                    <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                      <span>{manualBookingSuccess}</span>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleSubmitManualBooking} className="flex-1 overflow-y-auto space-y-4 no-scrollbar pr-1">
+                <form onSubmit={handleSubmitManualBooking} className="space-y-4 pr-1">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {/* Suite Selection */}
                       <div>
@@ -2235,9 +2229,8 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                       </button>
                     </div>
                   </form>
-                </div>
               </div>
-            )}
+            </CustomModal>
 
           </div>
         )}
@@ -2893,420 +2886,401 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
       </div>
 
       {/* ================= MODAL 1: BOOKING DETAIL SNAPSHOT ================= */}
-      {selectedBookingForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
-          <div className="relative w-full max-w-xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 space-y-5 max-h-[90vh] flex flex-col">
-            <button
-              onClick={() => setSelectedBookingForModal(null)}
-              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="pb-3 border-b border-white/10">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block">Booking Snapshot</span>
-              <h3 className="text-xl font-black text-white">{selectedBookingForModal.reference_number}</h3>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar text-xs">
-              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Guest Name</span>
-                  <span className="font-bold text-white">{selectedBookingForModal.guest_name}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Suite & Location</span>
-                  <span className="font-bold text-white">{selectedBookingForModal.room_name} ({selectedBookingForModal.location})</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-in</span>
-                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_in}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-out</span>
-                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_out}</span>
-                </div>
+      <CustomModal
+        isOpen={Boolean(selectedBookingForModal)}
+        onClose={() => setSelectedBookingForModal(null)}
+        title={selectedBookingForModal?.reference_number}
+        subtitle="Booking Snapshot"
+        size="xl"
+        footer={
+          <button
+            onClick={() => setSelectedBookingForModal(null)}
+            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 uppercase tracking-wider"
+          >
+            Close
+          </button>
+        }
+      >
+        {selectedBookingForModal && (
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Guest Name</span>
+                <span className="font-bold text-white">{selectedBookingForModal.guest_name}</span>
               </div>
-
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-                <span className="font-bold uppercase tracking-wider text-zinc-300 font-mono block">Financial Preservation Breakdown</span>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Room Rate:</span>
-                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.room_subtotal || selectedBookingForModal.amount || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Inclusions Subtotal:</span>
-                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.inclusions_subtotal || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-emerald-400">
-                  <span>Security Deposit:</span>
-                  <span className="font-mono font-bold">₱1,000 ({selectedBookingForModal.deposit_status || 'PENDING'})</span>
-                </div>
-                <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-sm text-white">
-                  <span>Total Booking Amount:</span>
-                  <span className="font-mono">₱{Number(selectedBookingForModal.total_amount || selectedBookingForModal.amount || 0).toLocaleString()}</span>
-                </div>
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Suite & Location</span>
+                <span className="font-bold text-white">{selectedBookingForModal.room_name} ({selectedBookingForModal.location})</span>
+              </div>
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-in</span>
+                <span className="font-bold text-white font-mono">{selectedBookingForModal.check_in}</span>
+              </div>
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-out</span>
+                <span className="font-bold text-white font-mono">{selectedBookingForModal.check_out}</span>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-white/10 flex justify-end">
-              <button
-                onClick={() => setSelectedBookingForModal(null)}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 uppercase tracking-wider"
-              >
-                Close
-              </button>
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+              <span className="font-bold uppercase tracking-wider text-zinc-300 font-mono block">Financial Preservation Breakdown</span>
+              <div className="flex justify-between text-zinc-400">
+                <span>Room Rate:</span>
+                <span className="text-white font-mono">₱{Number(selectedBookingForModal.room_subtotal || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-zinc-400">
+                <span>Inclusions Subtotal:</span>
+                <span className="text-white font-mono">₱{Number(selectedBookingForModal.inclusions_subtotal || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-emerald-400">
+                <span>Security Deposit:</span>
+                <span className="font-mono font-bold">₱1,000 ({selectedBookingForModal.deposit_status || 'PENDING'})</span>
+              </div>
+              <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-sm text-white">
+                <span>Total Booking Amount:</span>
+                <span className="font-mono">₱{Number(selectedBookingForModal.total_amount || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </CustomModal>
 
       {/* ================= MODAL 2: ADD / EDIT SUITE (Device Photo Uploader) ================= */}
-      {showRoomModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
-          <div className="relative w-full max-w-2xl liquid-glass border border-white/20 rounded-3xl p-6 sm:p-8 space-y-4 max-h-[90vh] flex flex-col">
-            <button onClick={() => setShowRoomModal(false)} className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-white">
-              <X className="w-5 h-5" />
-            </button>
+      <CustomModal
+        isOpen={showRoomModal}
+        onClose={() => setShowRoomModal(false)}
+        title={editingRoom ? `Edit ${editingRoom.room_name}` : 'Add New Suite'}
+        subtitle="Suite Inventory Control"
+        icon={Bed}
+        size="2xl"
+      >
+        <div className="space-y-4">
+          {roomSaveError && (
+            <div className="p-3.5 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-start space-x-2 text-rose-300 text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+              <span>{roomSaveError}</span>
+            </div>
+          )}
 
-            <h3 className="text-xl font-black text-white">
-              {editingRoom ? `Edit ${editingRoom.room_name}` : 'Add New Suite'}
-            </h3>
-
-            {roomSaveError && (
-              <div className="p-3.5 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-start space-x-2 text-rose-300 text-xs">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
-                <span>{roomSaveError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleSaveRoom} className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-zinc-400 font-mono block mb-1">Room Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Master Suite 01"
-                    value={roomFormName}
-                    onChange={(e) => setRoomFormName(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="text-zinc-400 font-mono block mb-1">Location *</label>
-                  <select
-                    value={roomFormLocation}
-                    onChange={(e) => setRoomFormLocation(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
-                  >
-                    <option value="Antipolo">Antipolo</option>
-                    <option value="Cainta">Cainta</option>
-                  </select>
-                </div>
-              </div>
-
+          <form onSubmit={handleSaveRoom} className="space-y-4 pr-1 text-xs">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-zinc-400 font-mono block mb-1">Price Per Night (₱) *</label>
+                <label className="text-zinc-400 font-mono block mb-1">Room Name *</label>
                 <input
-                  type="number"
+                  type="text"
                   required
-                  min="500"
-                  step="50"
-                  placeholder="2800"
-                  value={roomFormPrice}
-                  onChange={(e) => setRoomFormPrice(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono focus:border-amber-400/60 focus:outline-none"
+                  placeholder="e.g. Master Suite 01"
+                  value={roomFormName}
+                  onChange={(e) => setRoomFormName(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
                 />
               </div>
+              <div>
+                <label className="text-zinc-400 font-mono block mb-1">Location *</label>
+                <select
+                  value={roomFormLocation}
+                  onChange={(e) => setRoomFormLocation(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
+                >
+                  <option value="Antipolo">Antipolo</option>
+                  <option value="Cainta">Cainta</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-zinc-400 font-mono block mb-1">Price Per Night (₱) *</label>
+              <input
+                type="number"
+                required
+                min="500"
+                step="50"
+                placeholder="2800"
+                value={roomFormPrice}
+                onChange={(e) => setRoomFormPrice(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono focus:border-amber-400/60 focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-zinc-400 font-mono block mb-1">Description</label>
+              <textarea
+                rows={3}
+                placeholder="Describe the suite, view, amenities, and capacity..."
+                value={roomFormDescription}
+                onChange={(e) => setRoomFormDescription(e.target.value)}
+                className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 items-center">
+              <label className="flex items-center space-x-2 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={roomFormFeatured}
+                  onChange={(e) => setRoomFormFeatured(e.target.checked)}
+                  className="w-4 h-4 rounded text-black bg-black border-white/30"
+                />
+                <span className="font-bold text-white">Featured Suite</span>
+              </label>
 
               <div>
-                <label className="text-zinc-400 font-mono block mb-1">Description</label>
-                <textarea
-                  rows={3}
-                  placeholder="Describe the suite, view, amenities, and capacity..."
-                  value={roomFormDescription}
-                  onChange={(e) => setRoomFormDescription(e.target.value)}
-                  className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
-                />
+                <label className="text-zinc-400 font-mono block mb-1">Status</label>
+                <select
+                  value={roomFormStatus}
+                  onChange={(e) => setRoomFormStatus(e.target.value)}
+                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
+                >
+                  <option value="AVAILABLE">AVAILABLE</option>
+                  <option value="MAINTENANCE">MAINTENANCE</option>
+                  <option value="UNAVAILABLE">UNAVAILABLE</option>
+                </select>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3 items-center">
-                <label className="flex items-center space-x-2 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={roomFormFeatured}
-                    onChange={(e) => setRoomFormFeatured(e.target.checked)}
-                    className="w-4 h-4 rounded text-black bg-black border-white/30"
-                  />
-                  <span className="font-bold text-white">Featured Suite</span>
-                </label>
-
+            {/* Photo Manager (Device Only) */}
+            <div className="space-y-3 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-zinc-400 font-mono block mb-1">Status</label>
-                  <select
-                    value={roomFormStatus}
-                    onChange={(e) => setRoomFormStatus(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
-                  >
-                    <option value="AVAILABLE">AVAILABLE</option>
-                    <option value="MAINTENANCE">MAINTENANCE</option>
-                    <option value="UNAVAILABLE">UNAVAILABLE</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Photo Manager (Device Only) */}
-              <div className="space-y-3 pt-2 border-t border-white/10">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <label className="text-zinc-200 font-bold block font-mono text-xs">
-                      Suite Photos from Device ({roomFormImages.length}) *
-                    </label>
-                    <span className="text-[10px] text-zinc-400">Upload photos directly from your phone or computer</span>
-                  </div>
-                  {roomFormImages.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => roomFileInputRef.current?.click()}
-                      className="px-3 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add More Photos</span>
-                    </button>
-                  )}
-                </div>
-
-                <input
-                  ref={roomFileInputRef}
-                  type="file"
-                  accept="image/png, image/jpeg, image/jpg, image/webp"
-                  multiple
-                  onChange={handleDevicePhotoUpload}
-                  className="hidden"
-                />
-
-                {roomFormImages.length === 0 ? (
-                  <label
-                    onClick={() => roomFileInputRef.current?.click()}
-                    className="border-2 border-dashed border-white/20 hover:border-amber-400/60 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-black/40 hover:bg-white/5 transition-all group"
-                  >
-                    <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
-                      <Upload className="w-6 h-6" />
-                    </div>
-                    <span className="font-bold text-white text-xs">Tap to Select Photos from Device</span>
-                    <span className="text-[10px] text-zinc-400 mt-1">Supports JPG, PNG, WEBP &bull; You can select multiple files</span>
+                  <label className="text-zinc-200 font-bold block font-mono text-xs">
+                    Suite Photos from Device ({roomFormImages.length}) *
                   </label>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                    {roomFormImages.map((img, idx) => (
-                      <div key={idx} className="relative group rounded-2xl overflow-hidden h-24 border border-white/20 bg-black/60 shadow-lg">
-                        <img src={img} alt={`Suite photo ${idx + 1}`} className="w-full h-full object-cover" />
-                        {idx === 0 ? (
-                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black shadow-md">
-                            Cover Photo
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const reordered = [img, ...roomFormImages.filter((_, i) => i !== idx)];
-                              setRoomFormImages(reordered);
-                            }}
-                            className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/75 text-zinc-300 opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-black transition-all"
-                          >
-                            Make Cover
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
-                          className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-rose-500 rounded-lg text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all shadow-md"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
+                  <span className="text-[10px] text-zinc-400">Upload photos directly from your phone or computer</span>
+                </div>
+                {roomFormImages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => roomFileInputRef.current?.click()}
+                    className="px-3 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add More Photos</span>
+                  </button>
                 )}
               </div>
 
-              <div className="pt-3 border-t border-white/10 flex justify-end space-x-2">
-                <button
-                  type="button"
-                  disabled={isSavingRoom}
-                  onClick={() => setShowRoomModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white disabled:opacity-50 transition-colors"
+              <input
+                ref={roomFileInputRef}
+                type="file"
+                accept="image/png, image/jpeg, image/jpg, image/webp"
+                multiple
+                onChange={handleDevicePhotoUpload}
+                className="hidden"
+              />
+
+              {roomFormImages.length === 0 ? (
+                <label
+                  onClick={() => roomFileInputRef.current?.click()}
+                  className="border-2 border-dashed border-white/20 hover:border-amber-400/60 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-black/40 hover:bg-white/5 transition-all group"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingRoom}
-                  className="liquid-btn-primary px-6 py-2 rounded-xl font-bold uppercase flex items-center space-x-2 disabled:opacity-50"
-                >
-                  {isSavingRoom ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <span>{editingRoom ? 'Update Suite' : 'Save Suite'}</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
+                  <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
+                    <Upload className="w-6 h-6" />
+                  </div>
+                  <span className="font-bold text-white text-xs">Tap to Select Photos from Device</span>
+                  <span className="text-[10px] text-zinc-400 mt-1">Supports JPG, PNG, WEBP &bull; You can select multiple files</span>
+                </label>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                  {roomFormImages.map((img, idx) => (
+                    <div key={idx} className="relative group rounded-2xl overflow-hidden h-24 border border-white/20 bg-black/60 shadow-lg">
+                      <img src={img} alt={`Suite photo ${idx + 1}`} className="w-full h-full object-cover" />
+                      {idx === 0 ? (
+                        <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black shadow-md">
+                          Cover Photo
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const reordered = [img, ...roomFormImages.filter((_, i) => i !== idx)];
+                            setRoomFormImages(reordered);
+                          }}
+                          className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/75 text-zinc-300 opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-black transition-all"
+                        >
+                          Make Cover
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
+                        className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-rose-500 rounded-lg text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-end space-x-2">
+              <button
+                type="button"
+                disabled={isSavingRoom}
+                onClick={() => setShowRoomModal(false)}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white disabled:opacity-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingRoom}
+                className="liquid-btn-primary px-6 py-2 rounded-xl font-bold uppercase flex items-center space-x-2 disabled:opacity-50"
+              >
+                {isSavingRoom ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <span>{editingRoom ? 'Update Suite' : 'Save Suite'}</span>
+                )}
+              </button>
+            </div>
+          </form>
         </div>
-      )}
+      </CustomModal>
 
       {/* ================= MODAL 3: INCLUSION MODAL ================= */}
-      {showInclusionModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
-          <div className="relative w-full max-w-md liquid-glass border border-white/20 rounded-3xl p-6 space-y-4">
-            <button onClick={() => setShowInclusionModal(false)} className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-white">
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-lg font-black text-white">
-              {editingInclusion ? 'Edit Inclusion' : 'Add Inclusion'}
-            </h3>
-            <form onSubmit={handleSaveInclusion} className="space-y-3 text-xs">
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Inclusion Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={incName}
-                  onChange={(e) => setIncName(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Price (₱) *</label>
-                <input
-                  type="number"
-                  required
-                  value={incPrice}
-                  onChange={(e) => setIncPrice(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Description</label>
-                <textarea
-                  rows={2}
-                  value={incDesc}
-                  onChange={(e) => setIncDesc(e.target.value)}
-                  className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white"
-                />
-              </div>
-              <div className="pt-2 flex justify-end space-x-2">
-                <button type="button" onClick={() => setShowInclusionModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
-                <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Save</button>
-              </div>
-            </form>
+      <CustomModal
+        isOpen={showInclusionModal}
+        onClose={() => setShowInclusionModal(false)}
+        title={editingInclusion ? 'Edit Inclusion' : 'Add Inclusion'}
+        subtitle="Add-ons & Inclusions"
+        icon={Sparkles}
+        size="md"
+      >
+        <form onSubmit={handleSaveInclusion} className="space-y-3 text-xs">
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Inclusion Name *</label>
+            <input
+              type="text"
+              required
+              value={incName}
+              onChange={(e) => setIncName(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Price (₱) *</label>
+            <input
+              type="number"
+              required
+              value={incPrice}
+              onChange={(e) => setIncPrice(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
+            />
+          </div>
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Description</label>
+            <textarea
+              rows={2}
+              value={incDesc}
+              onChange={(e) => setIncDesc(e.target.value)}
+              className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white"
+            />
+          </div>
+          <div className="pt-2 flex justify-end space-x-2">
+            <button type="button" onClick={() => setShowInclusionModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
+            <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Save</button>
+          </div>
+        </form>
+      </CustomModal>
 
       {/* ================= MODAL 4: POLICY MODAL ================= */}
-      {showPolicyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
-          <div className="relative w-full max-w-md liquid-glass border border-white/20 rounded-3xl p-6 space-y-4">
-            <button onClick={() => setShowPolicyModal(false)} className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-white">
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-lg font-black text-white">
-              {editingPolicy ? 'Edit Policy' : 'Add Policy'}
-            </h3>
-            <form onSubmit={handleSavePolicy} className="space-y-3 text-xs">
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Policy Title *</label>
-                <input
-                  type="text"
-                  required
-                  value={polTitle}
-                  onChange={(e) => setPolTitle(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Policy Content *</label>
-                <textarea
-                  rows={3}
-                  required
-                  value={polContent}
-                  onChange={(e) => setPolContent(e.target.value)}
-                  className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white"
-                />
-              </div>
-              <div className="pt-2 flex justify-end space-x-2">
-                <button type="button" onClick={() => setShowPolicyModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
-                <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Save</button>
-              </div>
-            </form>
+      <CustomModal
+        isOpen={showPolicyModal}
+        onClose={() => setShowPolicyModal(false)}
+        title={editingPolicy ? 'Edit Policy' : 'Add Policy'}
+        subtitle="House Rules & Guidelines"
+        icon={FileText}
+        size="md"
+      >
+        <form onSubmit={handleSavePolicy} className="space-y-3 text-xs">
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Policy Title *</label>
+            <input
+              type="text"
+              required
+              value={polTitle}
+              onChange={(e) => setPolTitle(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Policy Content *</label>
+            <textarea
+              rows={3}
+              required
+              value={polContent}
+              onChange={(e) => setPolContent(e.target.value)}
+              className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white"
+            />
+          </div>
+          <div className="pt-2 flex justify-end space-x-2">
+            <button type="button" onClick={() => setShowPolicyModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
+            <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Save</button>
+          </div>
+        </form>
+      </CustomModal>
 
       {/* ================= MODAL 5: CREATE USER MODAL ================= */}
-      {showCreateUserModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
-          <div className="relative w-full max-w-md liquid-glass border border-white/20 rounded-3xl p-6 space-y-4">
-            <button onClick={() => setShowCreateUserModal(false)} className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-white">
-              <X className="w-5 h-5" />
-            </button>
-            <h3 className="text-lg font-black text-white">Create Staff Account</h3>
-            <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={newUserName}
-                  onChange={(e) => setNewUserName(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Email Address *</label>
-                <input
-                  type="email"
-                  required
-                  value={newUserEmail}
-                  onChange={(e) => setNewUserEmail(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Temporary Password *</label>
-                <input
-                  type="password"
-                  required
-                  value={newUserPassword}
-                  onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Role *</label>
-                <select
-                  value={newUserRole}
-                  onChange={(e) => setNewUserRole(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
-                >
-                  <option value="STAFF">STAFF</option>
-                  <option value="CUSTOMER_SUPPORT">CUSTOMER_SUPPORT</option>
-                </select>
-              </div>
-              <div className="pt-2 flex justify-end space-x-2">
-                <button type="button" onClick={() => setShowCreateUserModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
-                <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Create Account</button>
-              </div>
-            </form>
+      <CustomModal
+        isOpen={showCreateUserModal}
+        onClose={() => setShowCreateUserModal(false)}
+        title="Create Staff Account"
+        subtitle="Team Access Management"
+        icon={UserPlus}
+        size="md"
+      >
+        <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Full Name *</label>
+            <input
+              type="text"
+              required
+              value={newUserName}
+              onChange={(e) => setNewUserName(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+            />
           </div>
-        </div>
-      )}
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Email Address *</label>
+            <input
+              type="email"
+              required
+              value={newUserEmail}
+              onChange={(e) => setNewUserEmail(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+            />
+          </div>
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Temporary Password *</label>
+            <input
+              type="password"
+              required
+              value={newUserPassword}
+              onChange={(e) => setNewUserPassword(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
+            />
+          </div>
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Role *</label>
+            <select
+              value={newUserRole}
+              onChange={(e) => setNewUserRole(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+            >
+              <option value="STAFF">STAFF</option>
+              <option value="CUSTOMER_SUPPORT">CUSTOMER_SUPPORT</option>
+            </select>
+          </div>
+          <div className="pt-2 flex justify-end space-x-2">
+            <button type="button" onClick={() => setShowCreateUserModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
+            <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Create Account</button>
+          </div>
+        </form>
+      </CustomModal>
 
     </div>
   );

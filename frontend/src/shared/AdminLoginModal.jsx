@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, Loader2, AlertCircle } from 'lucide-react';
+import CustomModal from './CustomModal';
 
 export default function AdminLoginModal({ onClose, onLoginSuccess }) {
   const [email, setEmail] = useState('');
@@ -39,33 +40,22 @@ export default function AdminLoginModal({ onClose, onLoginSuccess }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-fade-in overflow-y-auto">
-      <div className="relative w-full max-w-md liquid-glass border border-white/20 rounded-3xl p-6 sm:p-8 shadow-2xl my-8 animate-modal-pop">
-        
-        {/* Close Button */}
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="absolute top-5 right-5 p-2.5 rounded-full liquid-btn text-white hover:bg-white hover:text-black transition-colors z-10"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-
-        {/* Modal Header */}
-        <div className="mb-6 text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white text-black mb-3 shadow-xl">
-            <ShieldCheck className="w-7 h-7" />
-          </div>
-          <h3 className="text-2xl font-black text-white">Administrative Portal</h3>
-          <p className="text-xs text-brand-lightgray mt-1">
-            Staff, Customer Support & Owner Login
-          </p>
-        </div>
+    <CustomModal
+      isOpen={true}
+      onClose={onClose}
+      title="Administrative Portal"
+      subtitle="Authorized Access Only"
+      icon={ShieldCheck}
+      size="md"
+    >
+      <div className="space-y-4">
+        <p className="text-xs text-zinc-400 font-mono -mt-2">
+          Staff, Customer Support & Owner Management Login
+        </p>
 
         {/* Error Banner */}
         {error && (
-          <div className="mb-4 p-3 rounded-xl bg-red-950/80 border border-red-800 text-red-200 text-xs flex items-center space-x-2">
+          <div className="p-3 rounded-xl bg-red-950/80 border border-red-800 text-red-200 text-xs flex items-center space-x-2">
             <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" />
             <span>{error}</span>
           </div>
@@ -74,11 +64,11 @@ export default function AdminLoginModal({ onClose, onLoginSuccess }) {
         {/* Login Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-brand-lightgray uppercase tracking-wider block mb-1.5">
+            <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider block mb-1.5 font-mono text-[11px]">
               Email Address
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-brand-gray" />
+              <Mail className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-400" />
               <input
                 type="email"
                 required
@@ -91,11 +81,11 @@ export default function AdminLoginModal({ onClose, onLoginSuccess }) {
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-brand-lightgray uppercase tracking-wider block mb-1.5">
+            <label className="text-xs font-semibold text-zinc-300 uppercase tracking-wider block mb-1.5 font-mono text-[11px]">
               Password
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-brand-gray" />
+              <Lock className="w-4 h-4 absolute left-3.5 top-3.5 text-zinc-400" />
               <input
                 type="password"
                 required
@@ -118,31 +108,32 @@ export default function AdminLoginModal({ onClose, onLoginSuccess }) {
         </form>
 
         {/* Demo Quick Logins */}
-        <div className="mt-6 pt-4 border-t border-white/10 text-center space-y-2">
-          <span className="text-[10px] text-brand-gray uppercase tracking-widest block">Quick Demo Logins (Password: password123)</span>
+        <div className="pt-4 border-t border-white/10 text-center space-y-2">
+          <span className="text-[10px] text-zinc-400 uppercase tracking-widest block font-mono">
+            Quick Demo Logins (Password: password123)
+          </span>
           <div className="flex flex-wrap justify-center gap-2">
             <button
               onClick={() => handleQuickFill('owner@cgchillcation.com')}
-              className="text-[11px] liquid-btn text-brand-lightgray px-3 py-1 rounded-lg"
+              className="text-[11px] liquid-btn text-zinc-300 px-3 py-1 rounded-lg"
             >
               Owner
             </button>
             <button
               onClick={() => handleQuickFill('staff@cgchillcation.com')}
-              className="text-[11px] liquid-btn text-brand-lightgray px-3 py-1 rounded-lg"
+              className="text-[11px] liquid-btn text-zinc-300 px-3 py-1 rounded-lg"
             >
               Staff
             </button>
             <button
               onClick={() => handleQuickFill('support@cgchillcation.com')}
-              className="text-[11px] liquid-btn text-brand-lightgray px-3 py-1 rounded-lg"
+              className="text-[11px] liquid-btn text-zinc-300 px-3 py-1 rounded-lg"
             >
               Customer Support
             </button>
           </div>
         </div>
-
       </div>
-    </div>
+    </CustomModal>
   );
 }

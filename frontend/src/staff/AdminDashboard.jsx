@@ -7,6 +7,7 @@ import {
   Plus, Bed, Grid, Layers, Building, HelpCircle, Phone, Mail, Tag, Globe
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import CustomModal from '../shared/CustomModal';
 
 const formatDate = (d) => {
   const year = d.getFullYear();
@@ -1911,41 +1912,34 @@ export default function AdminDashboard({ token, currentUser }) {
           )}
 
           {/* ---------------- MANUAL BOOKING MODAL ---------------- */}
-          {isManualBookingModalOpen && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
-              <div className="relative w-full max-w-2xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 space-y-5 max-h-[92vh] flex flex-col">
-                <button
-                  onClick={() => setIsManualBookingModalOpen(false)}
-                  className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+          <CustomModal
+            isOpen={isManualBookingModalOpen}
+            onClose={() => setIsManualBookingModalOpen(false)}
+            title="Record Manual Booking"
+            subtitle="Direct & OTA Channel Integration"
+            icon={Tag}
+            size="2xl"
+          >
+            <div className="space-y-4">
+              <p className="text-xs text-zinc-400 -mt-2">
+                Add reservations from Airbnb, Agoda, Facebook Messenger, Walk-ins, or Phone inquiries.
+              </p>
 
-                <div className="pb-3 border-b border-white/10">
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-emerald-400 block font-bold">
-                    Direct & OTA Channel Integration
-                  </span>
-                  <h3 className="text-xl font-black text-white">Record Manual Booking</h3>
-                  <p className="text-xs text-zinc-400 mt-0.5">
-                    Add reservations from Airbnb, Agoda, Facebook Messenger, Walk-ins, or Phone inquiries.
-                  </p>
+              {manualBookingError && (
+                <div className="p-3.5 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{manualBookingError}</span>
                 </div>
+              )}
 
-                {manualBookingError && (
-                  <div className="p-3.5 rounded-2xl bg-red-500/20 border border-red-500/40 text-red-200 text-xs flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    <span>{manualBookingError}</span>
-                  </div>
-                )}
+              {manualBookingSuccess && (
+                <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>{manualBookingSuccess}</span>
+                </div>
+              )}
 
-                {manualBookingSuccess && (
-                  <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                    <span>{manualBookingSuccess}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleSubmitManualBooking} className="flex-1 overflow-y-auto space-y-4 no-scrollbar pr-1">
+              <form onSubmit={handleSubmitManualBooking} className="space-y-4 pr-1">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Suite Selection */}
                     <div>
@@ -2181,9 +2175,8 @@ export default function AdminDashboard({ token, currentUser }) {
                     </button>
                   </div>
                 </form>
-              </div>
             </div>
-          )}
+          </CustomModal>
 
         </div>
       )}
@@ -2392,76 +2385,65 @@ export default function AdminDashboard({ token, currentUser }) {
       </div>
 
       {/* ================= DETAIL MODAL (Preserved Snapshot Viewer - Section 40, 43, 44) ================= */}
-      {selectedBookingForModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
-          <div className="relative w-full max-w-xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 space-y-5 max-h-[90vh] flex flex-col">
-            
-            <button
-              onClick={() => setSelectedBookingForModal(null)}
-              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="pb-3 border-b border-white/10">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block">Booking Snapshot</span>
-              <h3 className="text-xl font-black text-white">{selectedBookingForModal.reference_number}</h3>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar text-xs">
-              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Guest Name</span>
-                  <span className="font-bold text-white">{selectedBookingForModal.guest_name}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Suite & Location</span>
-                  <span className="font-bold text-white">{selectedBookingForModal.room_name} ({selectedBookingForModal.location})</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-in</span>
-                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_in}</span>
-                </div>
-                <div>
-                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-out</span>
-                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_out}</span>
-                </div>
+      <CustomModal
+        isOpen={Boolean(selectedBookingForModal)}
+        onClose={() => setSelectedBookingForModal(null)}
+        title={selectedBookingForModal?.reference_number}
+        subtitle="Booking Snapshot"
+        size="xl"
+        footer={
+          <button
+            onClick={() => setSelectedBookingForModal(null)}
+            className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 uppercase tracking-wider"
+          >
+            Close
+          </button>
+        }
+      >
+        {selectedBookingForModal && (
+          <div className="space-y-4 text-xs">
+            <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Guest Name</span>
+                <span className="font-bold text-white">{selectedBookingForModal.guest_name}</span>
               </div>
-
-              {/* Financial Snapshot Breakdown */}
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-                <span className="font-bold uppercase tracking-wider text-zinc-300 font-mono block">Financial Preservation Breakdown</span>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Room Rate ({selectedBookingForModal.nights || 1} nights):</span>
-                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.room_subtotal || selectedBookingForModal.amount || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-zinc-400">
-                  <span>Inclusions Subtotal:</span>
-                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.inclusions_subtotal || 0).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-emerald-400">
-                  <span>Refundable Security Deposit:</span>
-                  <span className="font-mono font-bold">₱1,000 ({selectedBookingForModal.deposit_status || 'PENDING'})</span>
-                </div>
-                <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-sm text-white">
-                  <span>Total Booking Amount:</span>
-                  <span className="font-mono">₱{Number(selectedBookingForModal.total_amount || selectedBookingForModal.amount || 0).toLocaleString()}</span>
-                </div>
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Suite & Location</span>
+                <span className="font-bold text-white">{selectedBookingForModal.room_name} ({selectedBookingForModal.location})</span>
+              </div>
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-in</span>
+                <span className="font-bold text-white font-mono">{selectedBookingForModal.check_in}</span>
+              </div>
+              <div>
+                <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-out</span>
+                <span className="font-bold text-white font-mono">{selectedBookingForModal.check_out}</span>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-white/10 flex justify-end">
-              <button
-                onClick={() => setSelectedBookingForModal(null)}
-                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 uppercase tracking-wider"
-              >
-                Close
-              </button>
+            {/* Financial Snapshot Breakdown */}
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+              <span className="font-bold uppercase tracking-wider text-zinc-300 font-mono block">Financial Preservation Breakdown</span>
+              <div className="flex justify-between text-zinc-400">
+                <span>Room Rate ({selectedBookingForModal.nights || 1} nights):</span>
+                <span className="text-white font-mono">₱{Number(selectedBookingForModal.room_subtotal || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-zinc-400">
+                <span>Inclusions Subtotal:</span>
+                <span className="text-white font-mono">₱{Number(selectedBookingForModal.inclusions_subtotal || 0).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between text-emerald-400">
+                <span>Refundable Security Deposit:</span>
+                <span className="font-mono font-bold">₱1,000 ({selectedBookingForModal.deposit_status || 'PENDING'})</span>
+              </div>
+              <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-sm text-white">
+                <span>Total Booking Amount:</span>
+                <span className="font-mono">₱{Number(selectedBookingForModal.total_amount || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+              </div>
             </div>
-
           </div>
-        </div>
-      )}
+        )}
+      </CustomModal>
 
     </div>
   );
