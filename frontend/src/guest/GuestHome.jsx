@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Users, MapPin, Star, MessageCircle, ArrowRight, Sparkles, Heart, QrCode, ExternalLink, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Users, MapPin, Star, MessageCircle, ArrowRight, Heart, QrCode, ExternalLink, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import RoomCard from './RoomCard';
 
 const HERO_SLIDES = [
@@ -344,7 +344,7 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal }) {
               onClick={onOpenExperienceModal}
               className="liquid-btn-primary px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <MessageCircle className="w-3.5 h-3.5" />
               <span>Leave a Review</span>
             </button>
           </div>

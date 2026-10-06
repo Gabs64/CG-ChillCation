@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, Maximize2, ArrowRight, Heart, Sparkles, Images } from 'lucide-react';
+import { MapPin, Maximize2, ArrowRight, Heart, Images } from 'lucide-react';
 
 export default function RoomCard({ room, onSelect }) {
   const mainImage = room.images && room.images.length > 0
@@ -32,8 +32,7 @@ export default function RoomCard({ room, onSelect }) {
           </div>
 
           {room.is_featured && (
-            <div className="bg-gradient-to-r from-amber-400 to-amber-300 text-black text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full flex items-center space-x-1 shadow-lg shadow-amber-400/25 backdrop-blur-md">
-              <Sparkles className="w-3 h-3 fill-black" />
+            <div className="bg-gradient-to-r from-amber-400 to-amber-300 text-black text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full flex items-center shadow-lg shadow-amber-400/25 backdrop-blur-md">
               <span>Featured</span>
             </div>
           )}

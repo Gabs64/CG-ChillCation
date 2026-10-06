@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Star, Sparkles, Send, CheckCircle2, QrCode, ExternalLink, Loader2, MessageSquare } from 'lucide-react';
+import { Star, Send, CheckCircle2, QrCode, ExternalLink, Loader2, MessageSquare } from 'lucide-react';
 import QRCode from 'qrcode';
 import CustomModal from '../shared/CustomModal';
 
@@ -73,7 +73,7 @@ export default function GuestExperienceModal({ onClose, prefillRoom = '', prefil
       onClose={onClose}
       title="Guest Experiences"
       subtitle="Share Your Staycation Story"
-      icon={Sparkles}
+      icon={Star}
       size="xl"
       customHeader={
         <div className="flex items-center space-x-2 pr-8">

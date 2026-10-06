@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Calendar, CheckCircle, Clock, Filter, Search, UserCheck, ShieldCheck, MapPin,
   ChevronLeft, ChevronRight, RotateCcw, QrCode, LogIn, LogOut, DollarSign,
-  AlertCircle, ShieldAlert, ArrowRight, Eye, ExternalLink, Sparkles, Loader2, Check,
-  Camera, X, RefreshCw, Upload, Video, VideoOff, CheckCircle2, SwitchCamera, Sparkle,
+  AlertCircle, ShieldAlert, ArrowRight, Eye, ExternalLink, Loader2, Check,
+  Camera, X, RefreshCw, Upload, Video, VideoOff, CheckCircle2, SwitchCamera,
   Plus, Bed, Grid, Layers, Building, HelpCircle, Phone, Mail, Tag, Globe
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';

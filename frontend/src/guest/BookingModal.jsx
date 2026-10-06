@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, User, Phone, Mail, Car, ShieldCheck, CreditCard, QrCode, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Loader2, Download, Sparkles, Plus, Minus, FileText, Check, ShieldAlert, ChevronLeft, ChevronRight, Info } from 'lucide-react';
+import { Calendar, User, Phone, Mail, Car, ShieldCheck, CreditCard, QrCode, CheckCircle2, AlertTriangle, ArrowRight, ArrowLeft, Loader2, Download, Plus, Minus, FileText, Check, ShieldAlert, ChevronLeft, ChevronRight, Info } from 'lucide-react';
 import QRCode from 'qrcode';
 import confetti from 'canvas-confetti';
 import CustomModal from '../shared/CustomModal';
@@ -1228,7 +1228,7 @@ export default function BookingModal({ room, onClose }) {
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5" />
+                  <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Submit Payment Reference</span>
                 </>
               )}

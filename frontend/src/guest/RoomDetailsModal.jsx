@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MapPin, Maximize2, Images, CheckCircle2, Sparkles, MessageCircle, ExternalLink, Calendar } from 'lucide-react';
+import { MapPin, Maximize2, Images, CheckCircle2, MessageCircle, ExternalLink, Calendar } from 'lucide-react';
 import PhotoGalleryModal from './PhotoGalleryModal';
 import CustomModal from '../shared/CustomModal';
 
@@ -85,8 +85,7 @@ export default function RoomDetailsModal({ room, onClose, onStartBooking }) {
                 </span>
 
                 {room.is_featured && (
-                  <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-black uppercase tracking-wider flex items-center space-x-1">
-                    <Sparkles className="w-3.5 h-3.5 fill-black" />
+                  <span className="px-3 py-1 rounded-full text-xs font-black bg-amber-400 text-black uppercase tracking-wider flex items-center">
                     <span>Featured Suite</span>
                   </span>
                 )}
@@ -170,7 +169,6 @@ export default function RoomDetailsModal({ room, onClose, onStartBooking }) {
                 }}
                 className="liquid-btn-primary px-6 py-3 rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center space-x-2 shadow-lg"
               >
-                <Sparkles className="w-4 h-4" />
                 <span>Book Now</span>
               </button>
             </div>

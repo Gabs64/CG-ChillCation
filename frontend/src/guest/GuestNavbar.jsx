@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Heart, Search, MessageCircle, Star, Home } from 'lucide-react';
+import { Heart, Search, MessageCircle, Star, Home } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function GuestNavbar({

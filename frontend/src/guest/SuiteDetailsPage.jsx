@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
-  MapPin, Maximize2, Users, BedDouble, Sparkles, Heart, Share2, 
+  MapPin, Maximize2, Users, BedDouble, Heart, Share2, 
   ArrowLeft, CheckCircle2, ShieldCheck, Clock, ExternalLink, 
   MessageCircle, Calendar, ChevronLeft, ChevronRight, Images, 
   Star, Wifi, Tv, Wind, Coffee, Bath, Flame, Award, AlertCircle, Loader2
@@ -223,8 +223,7 @@ export default function SuiteDetailsPage({ currentUser }) {
               </span>
 
               {room.is_featured && (
-                <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-amber-300 text-black uppercase tracking-wider flex items-center space-x-1 shadow-lg shadow-amber-400/20">
-                  <Sparkles className="w-3.5 h-3.5 fill-black" />
+                <span className="px-3.5 py-1.5 rounded-full text-xs font-black bg-gradient-to-r from-amber-400 to-amber-300 text-black uppercase tracking-wider flex items-center shadow-lg shadow-amber-400/20">
                   <span>Signature Suite</span>
                 </span>
               )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, LogOut, ExternalLink, ShieldCheck } from 'lucide-react';
+import { LogOut, ExternalLink, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function StaffNavbar({ currentUser, onLogout }) {
@@ -20,7 +20,6 @@ export default function StaffNavbar({ currentUser, onLogout }) {
               <span className="text-base sm:text-lg font-black tracking-wider text-white uppercase block leading-none group-hover:text-zinc-200 transition-colors whitespace-nowrap">
                 Staff & Support Portal
               </span>
-              <Sparkles className="w-3.5 h-3.5 text-white/70 animate-pulse flex-shrink-0" />
             </div>
             <span className="text-[10px] text-brand-lightgray tracking-widest block font-mono mt-0.5 uppercase whitespace-nowrap">
               OPERATIONAL CONTROL CENTER

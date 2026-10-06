@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, MapPin, ShieldCheck } from 'lucide-react';
+import { MapPin, ShieldCheck } from 'lucide-react';
 
 export default function LoadingScreen({ minDisplayTime = 1400, onFinished }) {
   const [progress, setProgress] = useState(0);

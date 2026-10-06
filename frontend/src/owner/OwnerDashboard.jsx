@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   DollarSign, Users, UserPlus, ShieldCheck, MapPin, Eye, EyeOff, FileText, CheckCircle2,
-  Lock, Loader2, AlertCircle, Sparkles, Plus, Edit2, Trash2, Star, Check, X, ShieldAlert,
+  Lock, Loader2, AlertCircle, Plus, Edit2, Trash2, Star, Check, X, ShieldAlert,
   Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2, Upload, Camera,
   Clock, Calendar, Search, Filter, ChevronLeft, ChevronRight, LogIn, LogOut, Video, VideoOff,
   SwitchCamera, ExternalLink, RotateCcw, ArrowRight, Bed, Grid, Tag, Globe, Phone, Mail,
@@ -2733,8 +2733,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-lg font-black text-white">{room.room_name}</h3>
                         {room.is_featured && (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-black flex items-center space-x-1">
-                            <Sparkles className="w-2.5 h-2.5 fill-black" />
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-amber-400 text-black flex items-center">
                             <span>Featured</span>
                           </span>
                         )}
@@ -3574,7 +3573,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
         onClose={() => setShowInclusionModal(false)}
         title={editingInclusion ? 'Edit Inclusion' : 'Add Inclusion'}
         subtitle="Add-ons & Inclusions by Location"
-        icon={Sparkles}
+        icon={Sliders}
         size="md"
       >
         <form onSubmit={handleSaveInclusion} className="space-y-4 text-xs">
