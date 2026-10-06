@@ -128,8 +128,8 @@ export const seedDatabase = async () => {
       }
       console.log('Demo rooms seeded.');
     }
-  } else if (process.env.CLEAR_EXISTING_ROOMS === 'true' || process.env.RAILWAY_ENVIRONMENT) {
-    // Clean slate on Railway: Delete any old demo rooms
+  } else if (process.env.CLEAR_EXISTING_ROOMS === 'true') {
+    // Explicit reset: Delete any old demo rooms
     await run('DELETE FROM rooms');
     await run('DELETE FROM room_images');
     await run('DELETE FROM room_payment_methods');
@@ -139,7 +139,7 @@ export const seedDatabase = async () => {
     await run('DELETE FROM booking_policy_acknowledgements');
     await run('DELETE FROM payments');
     await run('DELETE FROM security_deposits');
-    console.log('Clean slate: All existing rooms & demo bookings cleared for Railway live setup.');
+    console.log('Clean slate: All existing rooms & demo bookings cleared.');
   }
 
   // 5. Seed Users (Owner, Staff, Customer Support)
