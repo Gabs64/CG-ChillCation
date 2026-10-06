@@ -4,7 +4,8 @@ import {
   Lock, Loader2, AlertCircle, Sparkles, Plus, Edit2, Trash2, Star, Check, X, ShieldAlert,
   Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2, Upload, Camera,
   Clock, Calendar, Search, Filter, ChevronLeft, ChevronRight, LogIn, LogOut, Video, VideoOff,
-  SwitchCamera, ExternalLink, RotateCcw, ArrowRight, Bed, Grid, Tag, Globe, Phone, Mail
+  SwitchCamera, ExternalLink, RotateCcw, ArrowRight, Bed, Grid, Tag, Globe, Phone, Mail,
+  UserCheck, UserX, Key, Shield
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import CustomModal, { ConfirmModal } from '../shared/CustomModal';
@@ -155,6 +156,26 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserRole, setNewUserRole] = useState('STAFF');
+  const [createUserError, setCreateUserError] = useState('');
+  const [isCreatingUser, setIsCreatingUser] = useState(false);
+
+  // Edit Staff User State
+  const [showEditUserModal, setShowEditUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editUserEmail, setEditUserEmail] = useState('');
+  const [editUserRole, setEditUserRole] = useState('STAFF');
+  const [editUserStatus, setEditUserStatus] = useState('ACTIVE');
+  const [editUserPassword, setEditUserPassword] = useState('');
+  const [editUserError, setEditUserError] = useState('');
+  const [isUpdatingUser, setIsUpdatingUser] = useState(false);
+
+  // Staff List Filtering & Search
+  const [userRoleFilter, setUserRoleFilter] = useState('ALL');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   // 12. Universal Custom Confirmation Modal State (replaces browser confirm)
   const [confirmModalConfig, setConfirmModalConfig] = useState({
@@ -171,9 +192,6 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
     inputLabel: '',
     inputPlaceholder: ''
   });
-  const [newUserEmail, setNewUserEmail] = useState('');
-  const [newUserPassword, setNewUserPassword] = useState('password123');
-  const [newUserRole, setNewUserRole] = useState('STAFF');
 
   // 12. System Settings & Audit Log State
   const [systemSettings, setSystemSettings] = useState({
@@ -1042,22 +1060,125 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
     }
   };
 
-  // Handlers for Users
+  // Handlers for Users & Staff Accounts
   const handleCreateUser = async (e) => {
     e.preventDefault();
+    setCreateUserError('');
+    setIsCreatingUser(true);
     try {
-      await fetch('/api/owner/users', {
+      const res = await fetch('/api/owner/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name: newUserName, email: newUserEmail, password: newUserPassword, role: newUserRole })
       });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setCreateUserError(data.error || 'Failed to create user account.');
+        return;
+      }
       setShowCreateUserModal(false);
       setNewUserName('');
       setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserRole('STAFF');
       fetchUsers();
+      fetchAuditLogs();
     } catch (err) {
       console.error(err);
+      setCreateUserError('Network error while creating account.');
+    } finally {
+      setIsCreatingUser(false);
     }
+  };
+
+  const handleOpenEditUser = (user) => {
+    setEditingUser(user);
+    setEditUserName(user.name || '');
+    setEditUserEmail(user.email || '');
+    setEditUserRole(user.role || 'STAFF');
+    setEditUserStatus(user.status || 'ACTIVE');
+    setEditUserPassword('');
+    setEditUserError('');
+    setShowEditUserModal(true);
+  };
+
+  const handleSaveEditUser = async (e) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setEditUserError('');
+    setIsUpdatingUser(true);
+    try {
+      const payload = {
+        name: editUserName,
+        email: editUserEmail,
+        role: editUserRole,
+        status: editUserStatus,
+      };
+      if (editUserPassword && editUserPassword.trim().length > 0) {
+        payload.password = editUserPassword.trim();
+      }
+
+      const res = await fetch(`/api/owner/users/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setEditUserError(data.error || 'Failed to update user account.');
+        return;
+      }
+      setShowEditUserModal(false);
+      setEditingUser(null);
+      fetchUsers();
+      fetchAuditLogs();
+    } catch (err) {
+      console.error(err);
+      setEditUserError('Network error while updating account.');
+    } finally {
+      setIsUpdatingUser(false);
+    }
+  };
+
+  const handleToggleUserStatus = (user) => {
+    if (user.role === 'OWNER') return;
+    const isActivating = user.status !== 'ACTIVE';
+    
+    setConfirmModalConfig({
+      isOpen: true,
+      title: isActivating ? 'Activate Staff Account' : 'Deactivate Staff Account',
+      subtitle: `${user.name} • ${user.email}`,
+      message: isActivating
+        ? `Are you sure you want to activate the account for ${user.name}? They will immediately be able to log in to their ${user.role} portal.`
+        : `Are you sure you want to deactivate the account for ${user.name}? They will be immediately blocked from logging in to the portal until reactivated.`,
+      confirmText: isActivating ? 'Activate Account' : 'Deactivate Account',
+      cancelText: 'Cancel',
+      variant: isActivating ? 'warning' : 'danger',
+      isLoading: false,
+      requireMatchText: '',
+      onConfirm: async () => {
+        setConfirmModalConfig(prev => ({ ...prev, isLoading: true }));
+        try {
+          const res = await fetch(`/api/owner/users/${user.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ status: isActivating ? 'ACTIVE' : 'INACTIVE' })
+          });
+          const data = await res.json();
+          if (res.ok) {
+            setConfirmModalConfig({ isOpen: false, requireMatchText: '' });
+            fetchUsers();
+            fetchAuditLogs();
+          } else {
+            alert(data.error || 'Failed to update account status.');
+            setConfirmModalConfig(prev => ({ ...prev, isLoading: false }));
+          }
+        } catch (err) {
+          console.error(err);
+          setConfirmModalConfig(prev => ({ ...prev, isLoading: false }));
+        }
+      }
+    });
   };
 
   // Unified Navigation Menu
@@ -2925,35 +3046,205 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
           <div className="space-y-6">
             <div className="p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
               <div>
-                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Access Control</span>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Access Control & Security</span>
                 <h2 className="text-2xl font-black text-white">Staff Accounts & Permissions</h2>
+                <p className="text-xs text-zinc-400 mt-1">
+                  Manage staff and customer support credentials and roles. Deactivated accounts are instantly blocked from logging in.
+                </p>
               </div>
               <button
-                onClick={() => setShowCreateUserModal(true)}
-                className="liquid-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
+                onClick={() => {
+                  setCreateUserError('');
+                  setShowCreateUserModal(true);
+                }}
+                className="liquid-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 shadow-lg self-start sm:self-auto"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>Create Staff Account</span>
               </button>
             </div>
 
-            <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
-              {users.map((u) => (
-                <div key={u.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between">
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-bold text-white text-xs">{u.name}</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-zinc-300 border border-white/10">
-                        {u.role}
-                      </span>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${u.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
-                        {u.status}
-                      </span>
-                    </div>
-                    <span className="text-xs text-zinc-400 block font-mono mt-0.5">{u.email}</span>
-                  </div>
+            {/* Filters & Search */}
+            <div className="p-4 rounded-2xl bg-black/40 border border-white/10 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                {[
+                  { id: 'ALL', label: 'All Accounts', count: users.length },
+                  { id: 'STAFF', label: 'Staff', count: users.filter(u => u.role === 'STAFF').length },
+                  { id: 'CUSTOMER_SUPPORT', label: 'Support', count: users.filter(u => u.role === 'CUSTOMER_SUPPORT').length },
+                  { id: 'ACTIVE', label: 'Active', count: users.filter(u => u.status === 'ACTIVE').length },
+                  { id: 'INACTIVE', label: 'Deactivated', count: users.filter(u => u.status === 'INACTIVE').length },
+                ].map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => setUserRoleFilter(f.id)}
+                    className={`px-3 py-1.5 rounded-xl font-mono text-xs font-semibold transition-all ${
+                      userRoleFilter === f.id
+                        ? 'bg-amber-400 text-black shadow-md'
+                        : 'bg-white/5 text-zinc-400 hover:text-white hover:bg-white/10 border border-white/5'
+                    }`}
+                  >
+                    {f.label} <span className="opacity-70 text-[10px]">({f.count})</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="relative min-w-[220px]">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+                <input
+                  type="text"
+                  placeholder="Search by name or email..."
+                  value={userSearchQuery}
+                  onChange={(e) => setUserSearchQuery(e.target.value)}
+                  className="w-full h-9 pl-9 pr-3 rounded-xl bg-black/60 border border-white/10 text-xs text-white placeholder:text-zinc-600 focus:outline-none focus:border-amber-400/50"
+                />
+              </div>
+            </div>
+
+            {/* User List */}
+            <div className="space-y-3">
+              {isLoadingUsers ? (
+                <div className="p-12 text-center text-zinc-500 text-xs rounded-3xl bg-black/40 border border-white/10">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2 text-amber-400" />
+                  Loading staff accounts...
                 </div>
-              ))}
+              ) : (
+                (() => {
+                  const filtered = users.filter(u => {
+                    if (userRoleFilter === 'STAFF' && u.role !== 'STAFF') return false;
+                    if (userRoleFilter === 'CUSTOMER_SUPPORT' && u.role !== 'CUSTOMER_SUPPORT') return false;
+                    if (userRoleFilter === 'ACTIVE' && u.status !== 'ACTIVE') return false;
+                    if (userRoleFilter === 'INACTIVE' && u.status !== 'INACTIVE') return false;
+                    if (userSearchQuery) {
+                      const q = userSearchQuery.toLowerCase();
+                      return (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+                    }
+                    return true;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="p-12 text-center text-zinc-500 text-xs rounded-3xl bg-black/40 border border-white/10 italic">
+                        No staff or support accounts match your search or filter.
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((u) => {
+                    const isOwner = u.role === 'OWNER';
+                    const isActive = u.status === 'ACTIVE';
+
+                    return (
+                      <div
+                        key={u.id}
+                        className={`p-5 rounded-3xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                          isOwner
+                            ? 'bg-amber-950/10 border-amber-500/20 shadow-lg'
+                            : isActive
+                            ? 'bg-black/60 border-white/10 hover:border-white/20'
+                            : 'bg-zinc-950/60 border-rose-500/20 opacity-80'
+                        }`}
+                      >
+                        {/* Account Info */}
+                        <div className="flex items-start space-x-4">
+                          <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-bold text-sm shrink-0 border ${
+                            isOwner
+                              ? 'bg-amber-400/20 border-amber-400/40 text-amber-300'
+                              : u.role === 'STAFF'
+                              ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                              : 'bg-blue-500/20 border-blue-500/40 text-blue-300'
+                          }`}>
+                            {u.name?.charAt(0)?.toUpperCase() || 'U'}
+                          </div>
+
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="font-bold text-white text-sm">{u.name}</span>
+                              
+                              {/* Role Tag */}
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold tracking-wide border flex items-center space-x-1 ${
+                                isOwner
+                                  ? 'bg-amber-400/15 text-amber-300 border-amber-400/30'
+                                  : u.role === 'STAFF'
+                                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-blue-500/15 text-blue-300 border-blue-500/30'
+                              }`}>
+                                {isOwner ? '👑 Master Owner' : u.role === 'STAFF' ? '🏨 Staff' : '🎧 Customer Support'}
+                              </span>
+
+                              {/* Status Tag */}
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold border flex items-center space-x-1.5 ${
+                                isActive
+                                  ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                                  : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-400 animate-pulse' : 'bg-rose-400'}`}></span>
+                                <span>{isActive ? 'ACTIVE' : 'DEACTIVATED'}</span>
+                              </span>
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-4 text-xs text-zinc-400 font-mono">
+                              <span className="flex items-center space-x-1.5 text-zinc-300">
+                                <Mail className="w-3.5 h-3.5 text-zinc-500" />
+                                <span>{u.email}</span>
+                              </span>
+                              {u.created_at && (
+                                <span className="text-[11px] text-zinc-500">
+                                  Created: {u.created_at.split('T')[0]}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center space-x-2 self-end md:self-auto shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-white/5 w-full md:w-auto justify-end">
+                          {isOwner ? (
+                            <span className="px-3 py-1.5 rounded-xl bg-amber-400/10 text-amber-400/70 border border-amber-400/20 text-[11px] font-mono flex items-center space-x-1">
+                              <Lock className="w-3.5 h-3.5" />
+                              <span>Master Account Protected</span>
+                            </span>
+                          ) : (
+                            <>
+                              {/* Edit Account */}
+                              <button
+                                onClick={() => handleOpenEditUser(u)}
+                                className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/15 text-white border border-white/10 text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-sm"
+                                title="Edit Account Details"
+                              >
+                                <Edit2 className="w-3.5 h-3.5 text-amber-400" />
+                                <span>Edit</span>
+                              </button>
+
+                              {/* Activate / Deactivate Toggle */}
+                              <button
+                                onClick={() => handleToggleUserStatus(u)}
+                                className={`px-3.5 py-2 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 transition-all shadow-sm border ${
+                                  isActive
+                                    ? 'bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border-rose-500/30'
+                                    : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border-emerald-500/30'
+                                }`}
+                                title={isActive ? 'Deactivate this staff account' : 'Activate this staff account'}
+                              >
+                                {isActive ? (
+                                  <>
+                                    <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />
+                                    <span>Deactivate</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <UserCheck className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>Activate</span>
+                                  </>
+                                )}
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()
+              )}
             </div>
           </div>
         )}
@@ -3381,60 +3672,190 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
         </form>
       </CustomModal>
 
-      {/* ================= MODAL 5: CREATE USER MODAL ================= */}
+      {/* ================= MODAL 5: CREATE STAFF USER MODAL ================= */}
       <CustomModal
         isOpen={showCreateUserModal}
         onClose={() => setShowCreateUserModal(false)}
         title="Create Staff Account"
-        subtitle="Team Access Management"
+        subtitle="Team Access & Role Provisioning"
         icon={UserPlus}
         size="md"
       >
-        <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
+        <form onSubmit={handleCreateUser} className="space-y-4 text-xs">
+          {createUserError && (
+            <div className="p-3.5 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-start space-x-2 text-rose-300 text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+              <span>{createUserError}</span>
+            </div>
+          )}
+
           <div>
             <label className="text-zinc-400 font-mono block mb-1">Full Name *</label>
             <input
               type="text"
               required
+              placeholder="e.g. Maria Santos"
               value={newUserName}
               onChange={(e) => setNewUserName(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/50 focus:outline-none"
             />
           </div>
+
           <div>
             <label className="text-zinc-400 font-mono block mb-1">Email Address *</label>
             <input
               type="email"
               required
+              placeholder="e.g. maria@cgchillcation.com"
               value={newUserEmail}
               onChange={(e) => setNewUserEmail(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/50 focus:outline-none"
             />
           </div>
+
           <div>
             <label className="text-zinc-400 font-mono block mb-1">Temporary Password *</label>
             <input
               type="password"
               required
+              placeholder="Min 6 characters"
               value={newUserPassword}
               onChange={(e) => setNewUserPassword(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono placeholder:text-zinc-600 focus:border-amber-400/50 focus:outline-none"
             />
           </div>
+
           <div>
-            <label className="text-zinc-400 font-mono block mb-1">Role *</label>
+            <label className="text-zinc-400 font-mono block mb-1">Assigned Role *</label>
             <select
               value={newUserRole}
               onChange={(e) => setNewUserRole(e.target.value)}
-              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white cursor-pointer focus:border-amber-400/50 focus:outline-none"
             >
-              <option value="STAFF">STAFF</option>
-              <option value="CUSTOMER_SUPPORT">CUSTOMER_SUPPORT</option>
+              <option value="STAFF">STAFF (Frontdesk Operations & Arrivals)</option>
+              <option value="CUSTOMER_SUPPORT">CUSTOMER_SUPPORT (Guest Inquiries & Bookings)</option>
             </select>
           </div>
-          <div className="pt-2 flex justify-end space-x-2">
-            <button type="button" onClick={() => setShowCreateUserModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
-            <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Create Account</button>
+
+          <div className="pt-3 border-t border-white/10 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowCreateUserModal(false)}
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isCreatingUser}
+              className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase tracking-wider flex items-center space-x-1.5"
+            >
+              {isCreatingUser && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isCreatingUser ? 'Creating...' : 'Create Account'}</span>
+            </button>
+          </div>
+        </form>
+      </CustomModal>
+
+      {/* ================= MODAL 5b: EDIT STAFF USER MODAL ================= */}
+      <CustomModal
+        isOpen={showEditUserModal}
+        onClose={() => setShowEditUserModal(false)}
+        title={editingUser ? `Edit ${editingUser.name}` : 'Edit Staff Account'}
+        subtitle="Account Details, Role & Access Control"
+        icon={Edit2}
+        size="md"
+      >
+        <form onSubmit={handleSaveEditUser} className="space-y-4 text-xs">
+          {editUserError && (
+            <div className="p-3.5 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-start space-x-2 text-rose-300 text-xs">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+              <span>{editUserError}</span>
+            </div>
+          )}
+
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Full Name *</label>
+            <input
+              type="text"
+              required
+              value={editUserName}
+              onChange={(e) => setEditUserName(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/50 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="text-zinc-400 font-mono block mb-1">Email Address *</label>
+            <input
+              type="email"
+              required
+              value={editUserEmail}
+              onChange={(e) => setEditUserEmail(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/50 focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-zinc-400 font-mono block mb-1">Role *</label>
+              <select
+                value={editUserRole}
+                onChange={(e) => setEditUserRole(e.target.value)}
+                className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white cursor-pointer focus:border-amber-400/50 focus:outline-none"
+              >
+                <option value="STAFF">STAFF</option>
+                <option value="CUSTOMER_SUPPORT">CUSTOMER_SUPPORT</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-zinc-400 font-mono block mb-1">Account Status *</label>
+              <select
+                value={editUserStatus}
+                onChange={(e) => setEditUserStatus(e.target.value)}
+                className={`w-full h-10 px-3 rounded-xl bg-black/60 border text-white cursor-pointer focus:outline-none font-bold ${
+                  editUserStatus === 'ACTIVE'
+                    ? 'border-emerald-500/50 text-emerald-300'
+                    : 'border-rose-500/50 text-rose-300'
+                }`}
+              >
+                <option value="ACTIVE">ACTIVE (Authorized to login)</option>
+                <option value="INACTIVE">INACTIVE (Deactivated / Blocked)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-zinc-400 font-mono block">Reset Password</label>
+              <span className="text-[10px] text-zinc-500">Leave blank to keep existing password</span>
+            </div>
+            <input
+              type="password"
+              placeholder="Enter new password (optional)"
+              value={editUserPassword}
+              onChange={(e) => setEditUserPassword(e.target.value)}
+              className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono placeholder:text-zinc-600 focus:border-amber-400/50 focus:outline-none"
+            />
+          </div>
+
+          <div className="pt-3 border-t border-white/10 flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowEditUserModal(false)}
+              className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isUpdatingUser}
+              className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase tracking-wider flex items-center space-x-1.5"
+            >
+              {isUpdatingUser && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{isUpdatingUser ? 'Saving...' : 'Save Changes'}</span>
+            </button>
           </div>
         </form>
       </CustomModal>

@@ -1553,7 +1553,7 @@ router.post('/owner/users', verifyToken, requireRoles(['OWNER']), async (req, re
 router.patch('/owner/users/:id', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
     const userId = req.params.id;
-    const { status, password, role } = req.body;
+    const { name, email, status, password, role } = req.body;
 
     const user = await get('SELECT * FROM users WHERE id = ?', [userId]);
     if (!user) {
@@ -1564,20 +1564,44 @@ router.patch('/owner/users/:id', verifyToken, requireRoles(['OWNER']), async (re
       return res.status(400).json({ error: 'Owner account cannot be deactivated.' });
     }
 
-    if (status) {
+    if (user.role === 'OWNER' && role && role !== 'OWNER') {
+      return res.status(400).json({ error: 'Owner role cannot be changed.' });
+    }
+
+    if (email && email.trim().toLowerCase() !== user.email.toLowerCase()) {
+      const existing = await get('SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?', [email.trim(), userId]);
+      if (existing) {
+        return res.status(400).json({ error: 'Another account is already using this email address.' });
+      }
+      await run('UPDATE users SET email = ? WHERE id = ?', [email.trim(), userId]);
+    }
+
+    if (name && name.trim()) {
+      await run('UPDATE users SET name = ? WHERE id = ?', [name.trim(), userId]);
+    }
+
+    if (status && ['ACTIVE', 'INACTIVE'].includes(status)) {
       await run('UPDATE users SET status = ? WHERE id = ?', [status, userId]);
     }
 
-    if (role && ['STAFF', 'CUSTOMER_SUPPORT'].includes(role)) {
+    if (role && ['STAFF', 'CUSTOMER_SUPPORT'].includes(role) && user.role !== 'OWNER') {
       await run('UPDATE users SET role = ? WHERE id = ?', [role, userId]);
     }
 
-    if (password) {
-      const passwordHash = await bcrypt.hash(password, 10);
+    if (password && password.trim().length > 0) {
+      const passwordHash = await bcrypt.hash(password.trim(), 10);
       await run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
     }
 
-    await recordAuditLog(req.user.name, req.user.role, 'USER_UPDATED', user.email, `Updated user details`);
+    const actionType = status && status !== user.status
+      ? (status === 'INACTIVE' ? 'USER_DEACTIVATED' : 'USER_ACTIVATED')
+      : 'USER_UPDATED';
+
+    const logDetails = status && status !== user.status
+      ? `${status === 'INACTIVE' ? 'Deactivated' : 'Activated'} account for ${name || user.name} (${email || user.email})`
+      : `Updated ${role || user.role} account details for ${name || user.name}`;
+
+    await recordAuditLog(req.user.name, req.user.role, actionType, email || user.email, logDetails);
 
     res.json({ success: true, message: 'User account updated successfully.' });
   } catch (error) {

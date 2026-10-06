@@ -1071,10 +1071,19 @@ export const initMockApi = () => {
       const id = parseInt(pathname.match(/^\/api\/owner\/users\/(\d+)$/)[1]);
       const user = db.users.find((u) => u.id === id);
       if (user) {
-        if (body.status) user.status = body.status;
-        if (body.role) user.role = body.role;
+        if (body.name) user.name = body.name;
+        if (body.email) user.email = body.email;
+        if (body.role && user.role !== 'OWNER') user.role = body.role;
         if (body.password) user.password = body.password;
-        recordAudit(db, 'CG Owner', 'OWNER', 'USER_UPDATED', user.email, 'Updated user details');
+        if (body.status && (user.role !== 'OWNER' || body.status === 'ACTIVE')) {
+          const oldStatus = user.status;
+          user.status = body.status;
+          if (oldStatus !== body.status) {
+            const action = body.status === 'INACTIVE' ? 'USER_DEACTIVATED' : 'USER_ACTIVATED';
+            recordAudit(db, 'CG Owner', 'OWNER', action, user.email, `${body.status === 'INACTIVE' ? 'Deactivated' : 'Activated'} staff account for ${user.name}`);
+          }
+        }
+        recordAudit(db, 'CG Owner', 'OWNER', 'USER_UPDATED', user.email, `Updated account details for ${user.name}`);
         saveDb(db);
       }
       return jsonResponse({ success: true, message: 'User updated' });
