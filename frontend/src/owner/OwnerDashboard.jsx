@@ -760,21 +760,6 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
     }
   };
 
-  const handlePurgeAllRooms = async () => {
-    if (!window.confirm('Delete all demo rooms and reset to 0 rooms?')) return;
-    try {
-      for (const r of rooms) {
-        await fetch(`/api/owner/rooms/${r.id}`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
-      setRooms([]);
-      fetchRooms();
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
   // Handlers for Inclusions
   const handleSaveInclusion = async (e) => {
@@ -1730,15 +1715,6 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                 <h2 className="text-2xl font-black text-white">Suite Customization & Photos</h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                {rooms.length > 0 && (
-                  <button
-                    onClick={handlePurgeAllRooms}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 flex items-center space-x-1.5 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Clear All Demo Rooms ({rooms.length})</span>
-                  </button>
-                )}
                 <button
                   onClick={() => handleOpenRoomModal()}
                   className="liquid-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
