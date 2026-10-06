@@ -18,6 +18,8 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   // 2. Room Management State (Section 19-23)
   const [rooms, setRooms] = useState([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
+  const [isSavingRoom, setIsSavingRoom] = useState(false);
+  const [roomSaveError, setRoomSaveError] = useState('');
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
   const [roomFormName, setRoomFormName] = useState('');
@@ -29,6 +31,15 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   const [roomFormImages, setRoomFormImages] = useState([]);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [roomFormPaymentMethods, setRoomFormPaymentMethods] = useState(['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
+
+  // Quick photo presets for fast suite creation
+  const PHOTO_PRESETS = [
+    { label: 'Master Suite', url: 'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80' },
+    { label: 'Minimalist Bed', url: 'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80' },
+    { label: 'Executive Villa', url: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=1200&q=80' },
+    { label: 'Modern Lounge', url: 'https://images.unsplash.com/photo-1566665797739-1674de7a421a?auto=format&fit=crop&w=1200&q=80' },
+    { label: 'Balcony View', url: 'https://images.unsplash.com/photo-1578683010236-d716f9a3f461?auto=format&fit=crop&w=1200&q=80' },
+  ];
 
   // 3. Inclusions State (Section 13-14)
   const [inclusions, setInclusions] = useState([]);
@@ -104,11 +115,18 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   const fetchRooms = async () => {
     setIsLoadingRooms(true);
     try {
-      const res = await fetch('/api/rooms', { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch('/api/owner/rooms', { headers: { Authorization: `Bearer ${token}` } });
       const data = await res.json();
-      if (data.rooms) setRooms(data.rooms);
+      if (data.rooms) {
+        setRooms(data.rooms);
+      } else {
+        // Fallback to public rooms endpoint
+        const pubRes = await fetch('/api/rooms', { headers: { Authorization: `Bearer ${token}` } });
+        const pubData = await pubRes.json();
+        if (pubData.rooms) setRooms(pubData.rooms);
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching rooms:', err);
     } finally {
       setIsLoadingRooms(false);
     }
@@ -182,6 +200,8 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
 
   // Handlers for Room Management
   const handleOpenRoomModal = (room = null) => {
+    setRoomSaveError('');
+    setIsSavingRoom(false);
     if (room) {
       setEditingRoom(room);
       setRoomFormName(room.room_name);
@@ -211,35 +231,60 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
 
   const handleSaveRoom = async (e) => {
     e.preventDefault();
+    setRoomSaveError('');
+    setIsSavingRoom(true);
+
+    const trimmedName = roomFormName.trim();
+    if (!trimmedName) {
+      setRoomSaveError('Room name is required.');
+      setIsSavingRoom(false);
+      return;
+    }
+
+    const finalImages = roomFormImages && roomFormImages.length > 0 ? roomFormImages : [
+      'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80'
+    ];
+
     const payload = {
-      roomName: roomFormName,
+      roomName: trimmedName,
       location: roomFormLocation,
       pricePerNight: Number(roomFormPrice),
       description: roomFormDescription,
       isFeatured: roomFormFeatured,
       status: roomFormStatus,
-      images: roomFormImages,
+      images: finalImages,
       paymentMethods: roomFormPaymentMethods
     };
 
     try {
+      let res;
       if (editingRoom) {
-        await fetch(`/api/owner/rooms/${editingRoom.id}`, {
+        res = await fetch(`/api/owner/rooms/${editingRoom.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload)
         });
       } else {
-        await fetch('/api/owner/rooms', {
+        res = await fetch('/api/owner/rooms', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify(payload)
         });
       }
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save suite. Please verify inputs.');
+      }
+
       setShowRoomModal(false);
-      fetchRooms();
+      await fetchRooms();
     } catch (err) {
-      console.error(err);
+      console.error('Error saving room:', err);
+      setRoomSaveError(err.message || 'Failed to save suite.');
+    } finally {
+      setIsSavingRoom(false);
     }
   };
 
@@ -971,6 +1016,13 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
               {editingRoom ? `Edit ${editingRoom.room_name}` : 'Add New Suite'}
             </h3>
 
+            {roomSaveError && (
+              <div className="p-3.5 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-start space-x-2 text-rose-300 text-xs">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-400" />
+                <span>{roomSaveError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSaveRoom} className="flex-1 overflow-y-auto space-y-4 pr-1 no-scrollbar text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -978,9 +1030,10 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                   <input
                     type="text"
                     required
+                    placeholder="e.g. Master Suite 01"
                     value={roomFormName}
                     onChange={(e) => setRoomFormName(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
                   />
                 </div>
                 <div>
@@ -988,7 +1041,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                   <select
                     value={roomFormLocation}
                     onChange={(e) => setRoomFormLocation(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
                   >
                     <option value="Antipolo">Antipolo</option>
                     <option value="Cainta">Cainta</option>
@@ -1001,9 +1054,12 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 <input
                   type="number"
                   required
+                  min="500"
+                  step="50"
+                  placeholder="2800"
                   value={roomFormPrice}
                   onChange={(e) => setRoomFormPrice(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
+                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono focus:border-amber-400/60 focus:outline-none"
                 />
               </div>
 
@@ -1011,15 +1067,16 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 <label className="text-zinc-400 font-mono block mb-1">Description</label>
                 <textarea
                   rows={3}
+                  placeholder="Describe the suite, view, amenities, and capacity..."
                   value={roomFormDescription}
                   onChange={(e) => setRoomFormDescription(e.target.value)}
-                  className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white"
+                  className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
                 />
               </div>
 
               {/* Featured & Status */}
               <div className="grid grid-cols-2 gap-3 items-center">
-                <label className="flex items-center space-x-2 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer">
+                <label className="flex items-center space-x-2 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
                   <input
                     type="checkbox"
                     checked={roomFormFeatured}
@@ -1034,7 +1091,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                   <select
                     value={roomFormStatus}
                     onChange={(e) => setRoomFormStatus(e.target.value)}
-                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
                   >
                     <option value="AVAILABLE">AVAILABLE</option>
                     <option value="MAINTENANCE">MAINTENANCE</option>
@@ -1044,15 +1101,42 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
               </div>
 
               {/* Photo Manager (Section 23 - Minimum 2 photos) */}
-              <div className="space-y-2 pt-2 border-t border-white/10">
-                <label className="text-zinc-300 font-bold block font-mono">Room Photos (Minimum 2)</label>
-                <div className="flex gap-2">
+              <div className="space-y-2.5 pt-2 border-t border-white/10">
+                <div className="flex items-center justify-between">
+                  <label className="text-zinc-300 font-bold block font-mono">
+                    Room Photos ({roomFormImages.length})
+                  </label>
+                  <span className="text-[10px] text-zinc-400">At least 2 photos recommended</span>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-mono text-zinc-400 block">⚡ Quick Photo Presets:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PHOTO_PRESETS.map((p, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          if (!roomFormImages.includes(p.url)) {
+                            setRoomFormImages([...roomFormImages, p.url]);
+                          }
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] text-zinc-300 font-medium transition-colors"
+                      >
+                        + {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-1">
                   <input
                     type="url"
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder="Or paste custom image URL (https://...)"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
-                    className="flex-1 h-9 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs"
+                    className="flex-1 h-9 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
                   />
                   <button
                     type="button"
@@ -1062,38 +1146,53 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                         setNewImageUrl('');
                       }
                     }}
-                    className="px-3 rounded-xl bg-white text-black font-bold"
+                    className="px-3.5 rounded-xl bg-white text-black font-bold text-xs hover:bg-zinc-200 transition-colors"
                   >
-                    Add Photo
+                    Add URL
                   </button>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 pt-1">
-                  {roomFormImages.map((img, idx) => (
-                    <div key={idx} className="relative group rounded-xl overflow-hidden h-16 border border-white/20">
-                      <img src={img} alt="preview" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
-                        className="absolute top-1 right-1 p-1 bg-black/80 rounded text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                {roomFormImages.length > 0 && (
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
+                    {roomFormImages.map((img, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden h-16 border border-white/20 bg-black/40">
+                        <img src={img} alt="preview" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
+                          className="absolute top-1 right-1 p-1 bg-black/80 rounded text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove Photo"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="pt-3 border-t border-white/10 flex justify-end space-x-2">
                 <button
                   type="button"
+                  disabled={isSavingRoom}
                   onClick={() => setShowRoomModal(false)}
-                  className="px-4 py-2 rounded-xl bg-white/10 text-white"
+                  className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white disabled:opacity-50 transition-colors"
                 >
                   Cancel
                 </button>
-                <button type="submit" className="liquid-btn-primary px-6 py-2 rounded-xl font-bold uppercase">
-                  Save Suite
+                <button
+                  type="submit"
+                  disabled={isSavingRoom}
+                  className="liquid-btn-primary px-6 py-2 rounded-xl font-bold uppercase flex items-center space-x-2 disabled:opacity-50"
+                >
+                  {isSavingRoom ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <span>{editingRoom ? 'Update Suite' : 'Save Suite'}</span>
+                  )}
                 </button>
               </div>
             </form>

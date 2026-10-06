@@ -981,6 +981,36 @@ router.get('/owner/revenue', verifyToken, requireRoles(['OWNER']), async (req, r
   }
 });
 
+// Owner Room Management: List All Rooms
+router.get('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, res) => {
+  try {
+    const rooms = await all("SELECT * FROM rooms WHERE status != 'DEACTIVATED' ORDER BY is_featured DESC, id ASC");
+    const roomsWithDetails = await Promise.all(
+      rooms.map(async (room) => {
+        const images = await all(
+          'SELECT image_url, display_order, is_primary FROM room_images WHERE room_id = ? ORDER BY display_order ASC',
+          [room.id]
+        );
+        const paymentMethods = await all(
+          'SELECT payment_method FROM room_payment_methods WHERE room_id = ? AND is_enabled = 1',
+          [room.id]
+        );
+        return {
+          ...room,
+          is_featured: Boolean(room.is_featured),
+          images: images.map((img) => img.image_url),
+          image_details: images,
+          payment_methods: paymentMethods.map((pm) => pm.payment_method)
+        };
+      })
+    );
+    res.json({ success: true, rooms: roomsWithDetails });
+  } catch (error) {
+    console.error('Error in GET /api/owner/rooms:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Owner Room Management: Create Room
 router.post('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
@@ -990,35 +1020,76 @@ router.post('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, re
       return res.status(400).json({ error: 'Room name, location, and price per night are required.' });
     }
 
+    const trimmedName = roomName.trim();
+
+    // Check if room with this name already exists (including deactivated)
+    const existing = await get('SELECT id, status FROM rooms WHERE LOWER(room_name) = LOWER(?)', [trimmedName]);
+    if (existing) {
+      if (existing.status === 'DEACTIVATED') {
+        // Reactivate and update existing room
+        await run(
+          `UPDATE rooms SET location = ?, description = ?, price_per_night = ?, is_featured = ?, google_maps_url = ?, status = 'AVAILABLE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          [location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null, existing.id]
+        );
+        const roomId = existing.id;
+        
+        await run('DELETE FROM room_images WHERE room_id = ?', [roomId]);
+        const imgList = Array.isArray(images) && images.length > 0 ? images : [
+          'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
+          'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80'
+        ];
+        for (let i = 0; i < imgList.length; i++) {
+          await run(
+            `INSERT INTO room_images (room_id, image_url, display_order, is_primary) VALUES (?, ?, ?, ?)`,
+            [roomId, imgList[i], i + 1, i === 0 ? 1 : 0]
+          );
+        }
+
+        await run('DELETE FROM room_payment_methods WHERE room_id = ?', [roomId]);
+        const methods = Array.isArray(paymentMethods) && paymentMethods.length > 0 ? paymentMethods : ['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer'];
+        for (const pm of methods) {
+          await run(`INSERT INTO room_payment_methods (room_id, payment_method, is_enabled) VALUES (?, ?, 1)`, [roomId, pm]);
+        }
+
+        await recordAuditLog(req.user.name, req.user.role, 'ROOM_REACTIVATED', trimmedName, `Reactivated and updated suite in ${location} at ₱${pricePerNight}/night`);
+        return res.json({ success: true, message: 'Room reactivated and updated successfully', roomId });
+      } else {
+        return res.status(400).json({ error: `A suite named "${trimmedName}" already exists. Please choose a different suite name.` });
+      }
+    }
+
     const result = await run(
       `INSERT INTO rooms (room_name, location, description, price_per_night, is_featured, google_maps_url, status)
        VALUES (?, ?, ?, ?, ?, ?, 'AVAILABLE')`,
-      [roomName, location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null]
+      [trimmedName, location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null]
     );
 
     const roomId = result.lastID;
 
-    // Insert Images (minimum 2 images requirement)
-    if (Array.isArray(images) && images.length > 0) {
-      for (let i = 0; i < images.length; i++) {
-        await run(
-          `INSERT INTO room_images (room_id, image_url, display_order, is_primary) VALUES (?, ?, ?, ?)`,
-          [roomId, images[i], i + 1, i === 0 ? 1 : 0]
-        );
-      }
+    // Insert Images (minimum 2 images requirement fallback)
+    const imgList = Array.isArray(images) && images.length > 0 ? images : [
+      'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80'
+    ];
+    for (let i = 0; i < imgList.length; i++) {
+      await run(
+        `INSERT INTO room_images (room_id, image_url, display_order, is_primary) VALUES (?, ?, ?, ?)`,
+        [roomId, imgList[i], i + 1, i === 0 ? 1 : 0]
+      );
     }
 
     // Insert Room Payment Methods
-    const methods = paymentMethods.length > 0 ? paymentMethods : ['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer'];
+    const methods = Array.isArray(paymentMethods) && paymentMethods.length > 0 ? paymentMethods : ['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer'];
     for (const pm of methods) {
       await run(`INSERT INTO room_payment_methods (room_id, payment_method, is_enabled) VALUES (?, ?, 1)`, [roomId, pm]);
     }
 
-    await recordAuditLog(req.user.name, req.user.role, 'ROOM_CREATED', roomName, `Created suite in ${location} at ₱${pricePerNight}/night`);
+    await recordAuditLog(req.user.name, req.user.role, 'ROOM_CREATED', trimmedName, `Created suite in ${location} at ₱${pricePerNight}/night`);
 
     res.json({ success: true, message: 'Room created successfully', roomId });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error creating room:', error);
+    res.status(500).json({ error: error.message || 'Failed to create room' });
   }
 });
 
