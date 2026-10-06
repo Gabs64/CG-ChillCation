@@ -5,12 +5,14 @@ import StaffLayout from './staff/StaffLayout';
 import OwnerLayout from './owner/OwnerLayout';
 import LoginPage from './shared/LoginPage';
 import ProtectedRoute from './shared/ProtectedRoute';
+import LoadingScreen from './shared/LoadingScreen';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('cg_token') || '');
   const [isLoadingAuth, setIsLoadingAuth] = useState(!!localStorage.getItem('cg_token'));
   const [secretAdminPath, setSecretAdminPath] = useState('portal-access-8f3k29x7-admin-secure');
+  const [showInitialSplash, setShowInitialSplash] = useState(true);
 
   // Fetch configured secret portal path from public settings
   useEffect(() => {
@@ -67,75 +69,85 @@ export default function App() {
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Dedicated Guest Routes (Section 49, 55) */}
-        <Route path="/" element={<GuestLayout currentUser={currentUser} />} />
-        <Route path="/guest" element={<GuestLayout currentUser={currentUser} />} />
-
-        {/* Administrative Login Route */}
-        <Route
-          path="/login"
-          element={
-            <LoginPage
-              onLoginSuccess={handleLoginSuccess}
-              currentUser={currentUser}
-              isLoadingAuth={isLoadingAuth}
-            />
-          }
+    <>
+      {/* Initial Entry / Page Loading Animation */}
+      {showInitialSplash && (
+        <LoadingScreen
+          minDisplayTime={1400}
+          onFinished={() => setShowInitialSplash(false)}
         />
+      )}
 
-        {/* Secret Non-Public Administrative Entry Path (Redirects to /login) */}
-        <Route
-          path="/portal-access-8f3k29x7-admin-secure"
-          element={<Navigate to="/login" replace />}
-        />
-        {secretAdminPath !== 'portal-access-8f3k29x7-admin-secure' && (
+      <BrowserRouter>
+        <Routes>
+          {/* Public Dedicated Guest Routes (Section 49, 55) */}
+          <Route path="/" element={<GuestLayout currentUser={currentUser} />} />
+          <Route path="/guest" element={<GuestLayout currentUser={currentUser} />} />
+
+          {/* Administrative Login Route */}
           <Route
-            path={`/${secretAdminPath}`}
+            path="/login"
+            element={
+              <LoginPage
+                onLoginSuccess={handleLoginSuccess}
+                currentUser={currentUser}
+                isLoadingAuth={isLoadingAuth}
+              />
+            }
+          />
+
+          {/* Secret Non-Public Administrative Entry Path (Redirects to /login) */}
+          <Route
+            path="/portal-access-8f3k29x7-admin-secure"
             element={<Navigate to="/login" replace />}
           />
-        )}
+          {secretAdminPath !== 'portal-access-8f3k29x7-admin-secure' && (
+            <Route
+              path={`/${secretAdminPath}`}
+              element={<Navigate to="/login" replace />}
+            />
+          )}
 
-        {/* Dedicated Staff & Customer Support Protected Portal */}
-        <Route
-          path="/staff"
-          element={
-            <ProtectedRoute
-              currentUser={currentUser}
-              isLoadingAuth={isLoadingAuth}
-              allowedRoles={['STAFF', 'CUSTOMER_SUPPORT', 'OWNER']}
-            >
-              <StaffLayout
-                token={token}
+          {/* Dedicated Staff & Customer Support Protected Portal */}
+          <Route
+            path="/staff"
+            element={
+              <ProtectedRoute
                 currentUser={currentUser}
-                onLogout={handleLogout}
-              />
-            </ProtectedRoute>
-          }
-        />
+                isLoadingAuth={isLoadingAuth}
+                allowedRoles={['STAFF', 'CUSTOMER_SUPPORT', 'OWNER']}
+              >
+                <StaffLayout
+                  token={token}
+                  currentUser={currentUser}
+                  onLogout={handleLogout}
+                />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Dedicated Executive Owner Protected Portal */}
-        <Route
-          path="/owner"
-          element={
-            <ProtectedRoute
-              currentUser={currentUser}
-              isLoadingAuth={isLoadingAuth}
-              allowedRoles={['OWNER']}
-            >
-              <OwnerLayout
-                token={token}
+          {/* Dedicated Executive Owner Protected Portal */}
+          <Route
+            path="/owner"
+            element={
+              <ProtectedRoute
                 currentUser={currentUser}
-                onLogout={handleLogout}
-              />
-            </ProtectedRoute>
-          }
-        />
+                isLoadingAuth={isLoadingAuth}
+                allowedRoles={['OWNER']}
+              >
+                <OwnerLayout
+                  token={token}
+                  currentUser={currentUser}
+                  onLogout={handleLogout}
+                />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Fallback Catch-all: Public unauthorized paths redirect to Home */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </BrowserRouter>
+          {/* Fallback Catch-all: Public unauthorized paths redirect to Home */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </>
   );
 }

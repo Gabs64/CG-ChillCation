@@ -123,7 +123,20 @@
   }
 }
 
+@keyframes shimmerEffect {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* Utility Animations */
+.animate-shimmer {
+  animation: shimmerEffect 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
