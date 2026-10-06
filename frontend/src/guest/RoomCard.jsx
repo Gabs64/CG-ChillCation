@@ -10,7 +10,7 @@ export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlis
 
   return (
     <div className={`group relative liquid-glass-card rounded-3xl overflow-hidden flex flex-col justify-between transition-all duration-500 border ${
-      room.is_featured ? 'border-amber-400/40 shadow-xl shadow-amber-500/5' : 'border-white/10 hover:border-white/20'
+      room.is_featured ? 'border-amber-400/40 shadow-xl shadow-amber-500/10 hover:border-amber-400/70' : 'border-white/10 hover:border-white/30'
     }`}>
       
       {/* Image Showcase with Dynamic Zoom & Gloss Gradient */}
@@ -32,7 +32,7 @@ export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlis
           </div>
 
           {room.is_featured && (
-            <div className="bg-amber-400/90 text-black text-[11px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center space-x-1 shadow-lg shadow-amber-400/20 backdrop-blur-md">
+            <div className="bg-gradient-to-r from-amber-400 to-amber-300 text-black text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full flex items-center space-x-1 shadow-lg shadow-amber-400/25 backdrop-blur-md">
               <Sparkles className="w-3 h-3 fill-black" />
               <span>Featured</span>
             </div>
@@ -46,7 +46,7 @@ export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlis
             onToggleWishlist(room);
           }}
           aria-label="Save to Wishlist"
-          className="absolute top-3.5 right-3.5 z-20 p-2.5 rounded-full bg-black/60 hover:bg-black/80 border border-white/20 backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+          className="absolute top-3.5 right-3.5 z-20 p-2.5 rounded-full bg-black/60 hover:bg-black/90 border border-white/20 backdrop-blur-md transition-all duration-300 hover:scale-110 active:scale-95 shadow-lg"
         >
           <Heart className={`w-4 h-4 transition-colors ${
             isWishlisted ? 'text-rose-500 fill-rose-500' : 'text-white/80 hover:text-white'
@@ -55,12 +55,12 @@ export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlis
 
         {/* Bottom Tags: Photo Count & Suite Size */}
         <div className="absolute bottom-3.5 left-3.5 flex items-center space-x-2 z-10">
-          <div className="text-[11px] font-mono text-brand-lightgray flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/10">
+          <div className="text-[11px] font-mono text-zinc-300 flex items-center space-x-1.5 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/10 shadow-sm">
             <Maximize2 className="w-3 h-3 text-white" />
             <span>35 sqm Studio</span>
           </div>
 
-          <div className="text-[11px] font-mono text-brand-lightgray flex items-center space-x-1.5 bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/10">
+          <div className="text-[11px] font-mono text-zinc-300 flex items-center space-x-1.5 bg-black/70 backdrop-blur-md px-2.5 py-1 rounded-xl border border-white/10 shadow-sm">
             <Images className="w-3 h-3 text-white" />
             <span>{photoCount} Photos</span>
           </div>
@@ -75,17 +75,20 @@ export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlis
               {room.room_name}
             </h3>
             
-            {/* Operational Status */}
-            <span className={`text-[10px] font-mono uppercase font-bold tracking-widest px-3 py-1 rounded-full border backdrop-blur-md ${
+            {/* Operational Status with pulsing live dot */}
+            <span className={`text-[10px] font-mono uppercase font-bold tracking-widest px-3 py-1 rounded-full border backdrop-blur-md flex items-center space-x-1.5 ${
               room.status === 'AVAILABLE' 
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' 
                 : 'bg-white/10 text-zinc-300 border-white/20'
             }`}>
-              {room.status}
+              {room.status === 'AVAILABLE' && (
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              )}
+              <span>{room.status}</span>
             </span>
           </div>
 
-          <p className="text-xs text-brand-lightgray line-clamp-2 leading-relaxed font-sans">
+          <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed font-sans">
             {room.description}
           </p>
         </div>
@@ -96,13 +99,13 @@ export default function RoomCard({ room, onSelect, isWishlisted, onToggleWishlis
             <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-mono block">Price per night</span>
             <div className="flex items-baseline space-x-1">
               <span className="text-2xl font-black text-white tracking-tight">₱{Number(room.price_per_night).toLocaleString()}</span>
-              <span className="text-xs text-zinc-400">/ night</span>
+              <span className="text-xs text-zinc-400 font-mono">/ night</span>
             </div>
           </div>
 
           <button
             onClick={() => onSelect(room)}
-            className="liquid-btn-primary px-4 py-2.5 rounded-2xl font-bold text-xs uppercase tracking-wider flex items-center space-x-2 group/btn shadow-lg"
+            className="liquid-btn-primary px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center space-x-2 group/btn shadow-xl hover:scale-105 transition-all"
           >
             <span>View Suite</span>
             <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />

@@ -90,10 +90,16 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
   };
 
   return (
-    <div className="space-y-16 pb-16">
+    <div className="relative space-y-16 pb-16">
       
+      {/* Luxury Ambient Background Glow Mesh */}
+      <div className="luxury-ambient-bg pointer-events-none">
+        <div className="luxury-ambient-orb-1 animate-aurora" />
+        <div className="luxury-ambient-orb-2 animate-aurora" />
+      </div>
+
       {/* ================= 1. HERO CAROUSEL ================= */}
-      <div className="relative h-[480px] sm:h-[540px] rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+      <div className="relative h-[480px] sm:h-[540px] rounded-3xl overflow-hidden border border-white/15 shadow-2xl">
         {HERO_SLIDES.map((slide, idx) => (
           <div
             key={idx}
@@ -120,7 +126,7 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
               <div className="pt-2 flex flex-wrap gap-3">
                 <a
                   href="#rooms-section"
-                  className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 shadow-lg"
+                  className="liquid-btn-primary px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 shadow-xl hover:scale-105 transition-all"
                 >
                   <span>Explore All Suites</span>
                   <ArrowRight className="w-4 h-4" />
@@ -128,7 +134,7 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
 
                 <button
                   onClick={onOpenExperienceModal}
-                  className="px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all flex items-center space-x-2"
+                  className="px-5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/20 backdrop-blur-md transition-all flex items-center space-x-2 hover:scale-105"
                 >
                   <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
                   <span>Guest Reviews</span>
@@ -138,11 +144,11 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
           </div>
         ))}
 
-        {/* Slide Controls */}
+        {/* Slide Controls & Live Progress Dots */}
         <div className="absolute bottom-6 right-6 z-30 flex items-center space-x-2">
           <button
             onClick={() => setCurrentSlide((prev) => (prev - 1 + HERO_SLIDES.length) % HERO_SLIDES.length)}
-            className="p-2.5 rounded-full bg-black/60 hover:bg-white text-white hover:text-black border border-white/20 backdrop-blur-md transition-all"
+            className="p-2.5 rounded-full bg-black/60 hover:bg-white text-white hover:text-black border border-white/20 backdrop-blur-md transition-all active:scale-95"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
@@ -151,15 +157,15 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
               <button
                 key={i}
                 onClick={() => setCurrentSlide(i)}
-                className={`h-1.5 rounded-full transition-all ${
-                  currentSlide === i ? 'w-6 bg-white' : 'w-2 bg-white/40'
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  currentSlide === i ? 'w-8 bg-white shadow-lg shadow-white/50' : 'w-2 bg-white/40'
                 }`}
               />
             ))}
           </div>
           <button
             onClick={() => setCurrentSlide((prev) => (prev + 1) % HERO_SLIDES.length)}
-            className="p-2.5 rounded-full bg-black/60 hover:bg-white text-white hover:text-black border border-white/20 backdrop-blur-md transition-all"
+            className="p-2.5 rounded-full bg-black/60 hover:bg-white text-white hover:text-black border border-white/20 backdrop-blur-md transition-all active:scale-95"
           >
             <ChevronRight className="w-4 h-4" />
           </button>
@@ -167,59 +173,94 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
       </div>
 
       {/* ================= 2. SEARCH & DATE ESTIMATOR BAR ================= */}
-      <div className="liquid-glass border border-white/15 p-4 sm:p-6 rounded-3xl shadow-xl">
-        <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-end">
-          <div>
-            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
-              Location
-            </label>
-            <div className="relative">
-              <select
-                value={searchLocation}
-                onChange={(e) => setSearchLocation(e.target.value)}
-                className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40"
+      <div className="space-y-4">
+        <div className="liquid-glass border border-white/15 p-4 sm:p-6 rounded-3xl shadow-xl">
+          <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 items-end">
+            <div>
+              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                Location
+              </label>
+              <div className="relative">
+                <select
+                  value={searchLocation}
+                  onChange={(e) => setSearchLocation(e.target.value)}
+                  className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40"
+                >
+                  <option value="All">All Locations (Antipolo & Cainta)</option>
+                  <option value="Antipolo">Antipolo City (7 Suites)</option>
+                  <option value="Cainta">Cainta Rizal (7 Suites)</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                Check-in Date
+              </label>
+              <input
+                type="date"
+                value={arrivalDate}
+                onChange={(e) => setArrivalDate(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
+                Check-out Date
+              </label>
+              <input
+                type="date"
+                value={departureDate}
+                onChange={(e) => setDepartureDate(e.target.value)}
+                className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
+              />
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                className="liquid-btn-primary w-full h-11 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2 shadow-lg hover:scale-[1.02] transition-all"
               >
-                <option value="All">All Locations (Antipolo & Cainta)</option>
-                <option value="Antipolo">Antipolo City (7 Suites)</option>
-                <option value="Cainta">Cainta Rizal (7 Suites)</option>
-              </select>
+                <span>Search Available Suites</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {/* Luxury Trust Badges */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+          <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center space-x-3 backdrop-blur-md">
+            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 flex-shrink-0">
+              <QrCode className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-white block">Instant QR Access</span>
+              <span className="text-[10px] text-zinc-400 font-mono">Digital voucher on payment</span>
             </div>
           </div>
 
-          <div>
-            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
-              Check-in Date
-            </label>
-            <input
-              type="date"
-              value={arrivalDate}
-              onChange={(e) => setArrivalDate(e.target.value)}
-              className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
-            />
+          <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center space-x-3 backdrop-blur-md">
+            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0">
+              <ShieldCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-white block">Guaranteed Reservation</span>
+              <span className="text-[10px] text-zinc-400 font-mono">100% verified stay allocation</span>
+            </div>
           </div>
 
-          <div>
-            <label className="text-[11px] font-mono uppercase tracking-wider text-zinc-400 block mb-1">
-              Check-out Date
-            </label>
-            <input
-              type="date"
-              value={departureDate}
-              onChange={(e) => setDepartureDate(e.target.value)}
-              className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none focus:border-white/40 font-mono"
-            />
+          <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center space-x-3 backdrop-blur-md">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 flex-shrink-0">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div>
+              <span className="text-xs font-bold text-white block">50% Downpayment Rate</span>
+              <span className="text-[10px] text-zinc-400 font-mono">Lock dates, balance at check-in</span>
+            </div>
           </div>
-
-          <div>
-            <button
-              type="submit"
-              className="liquid-btn-primary w-full h-11 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center space-x-2"
-            >
-              <span>Search Available Suites</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
 
       {/* ================= 3. ROOM INVENTORY GRID (Section 2, 3) ================= */}
