@@ -691,8 +691,28 @@ export const initMockApi = () => {
 
     if (pathname === '/api/auth/me' && method === 'GET') {
       if (!token) return jsonResponse({ error: 'Unauthorized' }, 401);
-      const user = db.users[0]; // fallback
-      return jsonResponse({ success: true, user });
+      
+      let user = null;
+      if (token.startsWith('mock_token_')) {
+        const parts = token.split('_');
+        const userId = parseInt(parts[3]);
+        if (!isNaN(userId)) {
+          user = db.users.find((u) => u.id === userId);
+        }
+      }
+      
+      if (!user) {
+        user = db.users.find((u) => token.includes(`_${u.id}_`));
+      }
+
+      if (!user) {
+        return jsonResponse({ error: 'Unauthorized' }, 401);
+      }
+
+      return jsonResponse({
+        success: true,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      });
     }
 
     // 10. DAILY ARRIVALS & DEPARTURES

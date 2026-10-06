@@ -2,25 +2,25 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminLoginModal from './AdminLoginModal';
 
-export default function LoginPage({ onLoginSuccess, currentUser }) {
+export default function LoginPage({ onLoginSuccess, currentUser, isLoadingAuth }) {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    if (currentUser) {
+    if (!isLoadingAuth && currentUser) {
       if (currentUser.role === 'OWNER') {
-        navigate('/owner');
+        navigate('/owner', { replace: true });
       } else {
-        navigate('/staff');
+        navigate('/staff', { replace: true });
       }
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, isLoadingAuth, navigate]);
 
   const handleSuccess = (user, token) => {
     onLoginSuccess(user, token);
     if (user.role === 'OWNER') {
-      navigate('/owner');
+      navigate('/owner', { replace: true });
     } else {
-      navigate('/staff');
+      navigate('/staff', { replace: true });
     }
   };
 

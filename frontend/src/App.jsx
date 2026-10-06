@@ -9,6 +9,7 @@ import ProtectedRoute from './shared/ProtectedRoute';
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('cg_token') || '');
+  const [isLoadingAuth, setIsLoadingAuth] = useState(!!localStorage.getItem('cg_token'));
   const [secretAdminPath, setSecretAdminPath] = useState('portal-access-8f3k29x7-admin-secure');
 
   // Fetch configured secret portal path from public settings
@@ -26,6 +27,7 @@ export default function App() {
   // Restore user session if token exists
   useEffect(() => {
     if (token) {
+      setIsLoadingAuth(true);
       fetch('/api/auth/me', {
         headers: { Authorization: `Bearer ${token}` }
       })
@@ -33,25 +35,34 @@ export default function App() {
         .then((data) => {
           if (data.user) {
             setCurrentUser(data.user);
+          } else {
+            throw new Error('No user data');
           }
         })
         .catch(() => {
           localStorage.removeItem('cg_token');
           setToken('');
           setCurrentUser(null);
+        })
+        .finally(() => {
+          setIsLoadingAuth(false);
         });
+    } else {
+      setIsLoadingAuth(false);
     }
   }, [token]);
 
   const handleLoginSuccess = (user, authToken) => {
     setCurrentUser(user);
     setToken(authToken);
+    setIsLoadingAuth(false);
     localStorage.setItem('cg_token', authToken);
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
     setToken('');
+    setIsLoadingAuth(false);
     localStorage.removeItem('cg_token');
   };
 
@@ -69,6 +80,7 @@ export default function App() {
             <LoginPage
               onLoginSuccess={handleLoginSuccess}
               currentUser={currentUser}
+              isLoadingAuth={isLoadingAuth}
             />
           }
         />
@@ -91,6 +103,7 @@ export default function App() {
           element={
             <ProtectedRoute
               currentUser={currentUser}
+              isLoadingAuth={isLoadingAuth}
               allowedRoles={['STAFF', 'CUSTOMER_SUPPORT', 'OWNER']}
             >
               <StaffLayout
@@ -108,6 +121,7 @@ export default function App() {
           element={
             <ProtectedRoute
               currentUser={currentUser}
+              isLoadingAuth={isLoadingAuth}
               allowedRoles={['OWNER']}
             >
               <OwnerLayout
