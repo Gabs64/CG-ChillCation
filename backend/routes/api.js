@@ -73,7 +73,7 @@ router.get('/settings/public', async (req, res) => {
 router.get('/rooms', async (req, res) => {
   try {
     const { location, featured } = req.query;
-    let sql = 'SELECT * FROM rooms WHERE status != "DEACTIVATED"';
+    let sql = "SELECT * FROM rooms WHERE status != 'DEACTIVATED'";
     let params = [];
 
     if (location && location !== 'All') {
@@ -111,6 +111,7 @@ router.get('/rooms', async (req, res) => {
 
     res.json({ success: true, rooms: roomsWithDetails });
   } catch (error) {
+    console.error('Error in GET /api/rooms:', error);
     res.status(500).json({ error: error.message });
   }
 });
