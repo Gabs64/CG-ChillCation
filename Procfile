@@ -1,1 +1,1 @@
-web: npm run start:backend
+CG-Chillcation-Database: npm run start:backend
