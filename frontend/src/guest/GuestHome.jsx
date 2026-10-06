@@ -248,7 +248,6 @@ export default function GuestHome({ onSelectRoom, onOpenExperienceModal, wishlis
                     : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
                 }`}
               >
-                {tab === 'Featured' && '✨ '}
                 {tab === 'All' ? 'All Suites' : tab}
               </button>
             ))}
