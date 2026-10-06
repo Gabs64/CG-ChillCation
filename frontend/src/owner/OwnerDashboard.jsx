@@ -650,6 +650,16 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
     }
   };
 
+  const handleReturnToScanner = () => {
+    setScannedBooking(null);
+    setScannedRefInput('');
+    setQrScanError(null);
+    setScannerMode('camera');
+    setTimeout(() => {
+      startCameraScanner();
+    }, 150);
+  };
+
   const handleUpdateRoomOperationalStatus = async (roomId, newStatus) => {
     try {
       const res = await fetch(`/api/admin/rooms/${roomId}/status`, {
@@ -1493,6 +1503,22 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
             {scannedBooking ? (
               /* Verified Booking Details Full Screen View */
               <div className="space-y-6 animate-fade-in">
+                {/* Top Navigation Back Bar */}
+                <div className="flex items-center justify-between pb-1">
+                  <button
+                    type="button"
+                    onClick={handleReturnToScanner}
+                    className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all border border-white/15 hover:scale-105 shadow-md group"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-emerald-400 group-hover:-translate-x-1 transition-transform" />
+                    <span>Back to Camera Scanner</span>
+                  </button>
+                  <span className="text-[11px] font-mono text-zinc-400 flex items-center space-x-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Verified Dossier Active</span>
+                  </span>
+                </div>
+
                 {/* Header with Back to Scanner button */}
                 <div className="p-5 sm:p-6 rounded-3xl liquid-glass border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
                   <div>
@@ -1525,14 +1551,8 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                     </span>
 
                     <button
-                      onClick={() => {
-                        setScannedBooking(null);
-                        setScannedRefInput('');
-                        if (scannerMode === 'camera') {
-                          setTimeout(() => startCameraScanner(), 100);
-                        }
-                      }}
-                      className="liquid-btn-primary px-4 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
+                      onClick={handleReturnToScanner}
+                      className="liquid-btn-primary px-5 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2 shadow-lg hover:scale-105 transition-all"
                     >
                       <Camera className="w-4 h-4" />
                       <span>Scan Another QR Code</span>
@@ -1692,16 +1712,10 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                       <span>View Full Snapshot</span>
                     </button>
                     <button
-                      onClick={() => {
-                        setScannedBooking(null);
-                        setScannedRefInput('');
-                        if (scannerMode === 'camera') {
-                          setTimeout(() => startCameraScanner(), 100);
-                        }
-                      }}
-                      className="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold uppercase text-xs transition-colors flex items-center space-x-1.5"
+                      onClick={handleReturnToScanner}
+                      className="px-5 py-3 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-bold uppercase text-xs transition-colors flex items-center space-x-1.5 border border-white/10 shadow-lg"
                     >
-                      <Camera className="w-4 h-4" />
+                      <Camera className="w-4 h-4 text-emerald-400" />
                       <span>Scan Next</span>
                     </button>
                   </div>

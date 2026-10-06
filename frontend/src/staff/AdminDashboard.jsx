@@ -561,6 +561,16 @@ export default function AdminDashboard({ token, currentUser }) {
     }
   };
 
+  const handleReturnToScanner = () => {
+    setScannedBooking(null);
+    setScannedRefInput('');
+    setQrScanError(null);
+    setScannerMode('camera');
+    setTimeout(() => {
+      startCameraScanner();
+    }, 150);
+  };
+
   const handleUpdateRoomOperationalStatus = async (roomId, newStatus) => {
     try {
       const res = await fetch(`/api/admin/rooms/${roomId}/status`, {
@@ -916,6 +926,22 @@ export default function AdminDashboard({ token, currentUser }) {
           {scannedBooking ? (
             /* QR Scanned Booking Result Display (Full Dedicated Verified Details Dossier) */
             <div className="space-y-6 animate-fade-in">
+              {/* Top Navigation Back Bar */}
+              <div className="flex items-center justify-between pb-1">
+                <button
+                  type="button"
+                  onClick={handleReturnToScanner}
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all border border-white/15 hover:scale-105 shadow-md group"
+                >
+                  <ChevronLeft className="w-4 h-4 text-emerald-400 group-hover:-translate-x-1 transition-transform" />
+                  <span>Back to Camera Scanner</span>
+                </button>
+                <span className="text-[11px] font-mono text-zinc-400 flex items-center space-x-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                  <span>Verified Dossier Active</span>
+                </span>
+              </div>
+
               {/* Header Bar */}
               <div className="p-6 sm:p-8 rounded-3xl liquid-glass border border-emerald-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xl">
                 <div className="space-y-1">
@@ -948,13 +974,7 @@ export default function AdminDashboard({ token, currentUser }) {
                   </span>
 
                   <button
-                    onClick={() => {
-                      setScannedBooking(null);
-                      setScannedRefInput('');
-                      if (scannerMode === 'camera') {
-                        setTimeout(() => startCameraScanner(), 100);
-                      }
-                    }}
+                    onClick={handleReturnToScanner}
                     className="liquid-btn-primary px-4 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
                   >
                     <Camera className="w-4 h-4" />
@@ -1122,14 +1142,25 @@ export default function AdminDashboard({ token, currentUser }) {
 
               {/* Action Controls Bar: Check-In / Check-Out */}
               <div className="pt-4 border-t border-white/15 flex flex-wrap gap-3 justify-between items-center">
-                <button
-                  type="button"
-                  onClick={() => setSelectedBookingForModal(scannedBooking)}
-                  className="px-5 py-3 rounded-2xl text-xs font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/15 flex items-center space-x-2 transition-colors"
-                >
-                  <Eye className="w-4 h-4" />
-                  <span>View Full Snapshot</span>
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleReturnToScanner}
+                    className="px-5 py-3 rounded-2xl text-xs font-bold uppercase bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 flex items-center space-x-2 transition-all hover:scale-105"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>Scan Next Voucher</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBookingForModal(scannedBooking)}
+                    className="px-5 py-3 rounded-2xl text-xs font-bold uppercase bg-white/10 hover:bg-white/20 text-white border border-white/15 flex items-center space-x-2 transition-colors"
+                  >
+                    <Eye className="w-4 h-4" />
+                    <span>View Full Snapshot</span>
+                  </button>
+                </div>
 
                 <div className="flex flex-wrap gap-2">
                   {scannedBooking.check_in_status === 'NOT_CHECKED_IN' && (
