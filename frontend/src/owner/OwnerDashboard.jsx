@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   DollarSign, Users, UserPlus, ShieldCheck, MapPin, Eye, EyeOff, FileText, CheckCircle2,
   Lock, Loader2, AlertCircle, Sparkles, Plus, Edit2, Trash2, Star, Check, X, ShieldAlert,
-  Layers, Settings, Sliders, Image, QrCode, RefreshCw
+  Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2
 } from 'lucide-react';
 
 export default function OwnerDashboard({ token, activeTab: externalActiveTab, setActiveTab: setExternalActiveTab }) {
