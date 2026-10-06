@@ -12,8 +12,8 @@ export default function StaffNavbar({ currentUser, onLogout }) {
           to="/staff" 
           className="flex items-center space-x-3 group flex-shrink-0"
         >
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white via-zinc-200 to-zinc-400 text-black flex items-center justify-center font-extrabold text-xl tracking-tighter shadow-lg shadow-white/15 group-hover:scale-105 transition-all duration-300 border border-white/40">
-            CG
+          <div className="w-10 h-10 rounded-xl overflow-hidden bg-black flex items-center justify-center shadow-lg shadow-white/10 group-hover:scale-105 transition-all duration-300 border border-white/20">
+            <img src="/logo.png" alt="CG Chillcation Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="flex items-center space-x-1.5">

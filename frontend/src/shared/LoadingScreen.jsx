@@ -60,14 +60,12 @@ export default function LoadingScreen({ minDisplayTime = 1400, onFinished }) {
           <div className="absolute inset-0 -m-1.5 rounded-3xl border border-white/20 animate-pulse" />
           
           {/* Emblem Box */}
-          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-gradient-to-br from-white/15 to-white/5 border border-white/30 backdrop-blur-2xl shadow-2xl flex flex-col items-center justify-center p-3 relative overflow-hidden group">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-black/80 border border-white/30 backdrop-blur-2xl shadow-2xl flex flex-col items-center justify-center p-3 relative overflow-hidden group">
             {/* Shimmer light sweep */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-shimmer pointer-events-none" />
             
-            <span className="text-2xl sm:text-3xl font-black tracking-tighter text-white font-sans drop-shadow-md">
-              CG
-            </span>
-            <div className="w-6 h-0.5 bg-emerald-400 rounded-full mt-0.5 shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <img src="/logo.png" alt="CG Chillcation Logo" className="w-12 h-12 sm:w-14 sm:h-14 object-contain drop-shadow-md" />
+            <div className="w-6 h-0.5 bg-white/60 rounded-full mt-1.5 shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
           </div>
         </div>
 
