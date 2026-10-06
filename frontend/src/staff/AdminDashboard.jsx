@@ -275,75 +275,73 @@ export default function AdminDashboard({ token, currentUser }) {
   const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
   const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay();
 
+  const staffNavTabs = [
+    { id: 'daily_log', label: 'Daily Arrivals & Departures', desc: 'Check-in & Check-out Flow', icon: Clock },
+    { id: 'qr_scanner', label: 'QR Scanner', desc: 'Fast Booking Verification', icon: QrCode },
+    { id: 'calendar', label: 'Master Calendar', desc: 'Visual Schedule & Timeline', icon: Calendar },
+    { id: 'bookings', label: 'All Bookings Log', desc: 'Search & Snapshot Records', icon: Search },
+    { id: 'room_status', label: 'Room Status', desc: 'Real-time Suite Conditions', icon: ShieldCheck },
+  ];
+
   return (
-    <div className="space-y-6 pb-16">
+    <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch lg:items-start pb-16">
       
-      {/* ================= PORTAL SUB-NAVIGATION TABS (Section 53, 54) ================= */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4 overflow-x-auto no-scrollbar gap-2">
-        <div className="flex items-center space-x-1 sm:space-x-2">
+      {/* ================= STAFF OPERATIONAL SIDEBAR NAV ================= */}
+      <aside className="w-full lg:w-72 xl:w-80 flex-shrink-0 lg:sticky lg:top-28 z-20">
+        <div className="liquid-glass rounded-3xl p-3 sm:p-4 border border-white/10 shadow-2xl backdrop-blur-2xl space-y-3">
           
-          <button
-            onClick={() => setActiveTab('daily_log')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'daily_log'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Clock className="w-3.5 h-3.5" />
-            <span>Daily Arrivals & Departures</span>
-          </button>
+          <div className="px-3 py-2 border-b border-white/5 hidden lg:flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-300 block">
+                Operations Menu
+              </span>
+              <span className="text-[9px] font-mono text-zinc-500 block uppercase">
+                {currentUser?.role ? currentUser.role.replace('_', ' ') : 'Staff & Support'}
+              </span>
+            </div>
+            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 font-bold border border-white/10">
+              STAFF
+            </span>
+          </div>
 
-          <button
-            onClick={() => setActiveTab('qr_scanner')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'qr_scanner'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <QrCode className="w-3.5 h-3.5" />
-            <span>QR Scanner</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('calendar')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'calendar'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Master Calendar</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('bookings')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'bookings'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <Search className="w-3.5 h-3.5" />
-            <span>All Bookings Log</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('room_status')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center space-x-2 ${
-              activeTab === 'room_status'
-                ? 'bg-white text-black shadow-lg shadow-white/10'
-                : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/10'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>Room Status</span>
-          </button>
-
+          <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 no-scrollbar">
+            {staffNavTabs.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`w-auto lg:w-full px-3.5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center justify-between gap-3 group text-left ${
+                    isActive
+                      ? 'bg-white text-black shadow-lg shadow-white/10 scale-[1.01]'
+                      : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 hover:border-white/15'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                      isActive ? 'bg-black text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white group-hover:bg-white/10'
+                    }`}>
+                      <Icon className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="block truncate font-bold text-[11px] sm:text-xs">{tab.label}</span>
+                      <span className={`hidden lg:block text-[9px] font-mono normal-case tracking-normal truncate ${
+                        isActive ? 'text-zinc-600 font-medium' : 'text-zinc-500 group-hover:text-zinc-400'
+                      }`}>
+                        {tab.desc}
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
         </div>
-      </div>
+      </aside>
+
+      {/* ================= ACTIVE TAB MAIN CONTENT ================= */}
+      <div className="flex-1 min-w-0 space-y-6">
 
       {/* ================= TAB 1: DAILY ARRIVALS & DEPARTURES LOG (Section 27-33, 57-58) ================= */}
       {activeTab === 'daily_log' && (
@@ -1096,6 +1094,7 @@ export default function AdminDashboard({ token, currentUser }) {
           </div>
         </div>
       )}
+      </div>
 
       {/* ================= DETAIL MODAL (Preserved Snapshot Viewer - Section 40, 43, 44) ================= */}
       {selectedBookingForModal && (
