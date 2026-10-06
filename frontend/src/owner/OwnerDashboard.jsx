@@ -2,20 +2,88 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   DollarSign, Users, UserPlus, ShieldCheck, MapPin, Eye, EyeOff, FileText, CheckCircle2,
   Lock, Loader2, AlertCircle, Sparkles, Plus, Edit2, Trash2, Star, Check, X, ShieldAlert,
-  Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2, Upload, Camera
+  Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2, Upload, Camera,
+  Clock, Calendar, Search, Filter, ChevronLeft, ChevronRight, LogIn, LogOut, Video, VideoOff,
+  SwitchCamera, ExternalLink, RotateCcw, ArrowRight
 } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 
-export default function OwnerDashboard({ token, activeTab: externalActiveTab, setActiveTab: setExternalActiveTab }) {
-  // Tabs: 'revenue', 'rooms', 'inclusions', 'policies', 'experiences', 'users', 'settings'
+const formatDate = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+export default function OwnerDashboard({ token, currentUser, activeTab: externalActiveTab, setActiveTab: setExternalActiveTab }) {
+  // Navigation Tabs:
+  // Operations: 'daily_log', 'qr_scanner', 'calendar', 'bookings', 'room_status'
+  // Executive: 'revenue', 'rooms', 'inclusions', 'policies', 'experiences', 'users', 'settings'
   const [internalActiveTab, setInternalActiveTab] = useState('revenue');
   const activeTab = externalActiveTab || internalActiveTab;
   const setActiveTab = setExternalActiveTab || setInternalActiveTab;
 
-  // 1. Revenue Analytics State
+  // ----------------------------------------------------
+  // STAFF OPERATIONAL STATE
+  // ----------------------------------------------------
+
+  // 1. Daily Arrivals & Departures State
+  const [selectedDate, setSelectedDate] = useState(() => formatDate(new Date()));
+  const [dailyData, setDailyData] = useState({ arrivals: [], departures: [], inHouse: [], summary: {} });
+  const [isLoadingDaily, setIsLoadingDaily] = useState(false);
+  const [dailySubTab, setDailySubTab] = useState('arrivals'); // 'arrivals', 'departures', 'in_house'
+
+  // 2. QR Scanner State
+  const [scannedRefInput, setScannedRefInput] = useState('');
+  const [scannedBooking, setScannedBooking] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [qrScanError, setQrScanError] = useState(null);
+  const [scannerMode, setScannerMode] = useState('camera'); // 'camera', 'upload', 'manual'
+  const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isStartingCamera, setIsStartingCamera] = useState(false);
+  const [cameraDevices, setCameraDevices] = useState([]);
+  const [selectedCameraId, setSelectedCameraId] = useState('');
+  const [scanSuccessFeedback, setScanSuccessFeedback] = useState(false);
+  const [cooldownCountdown, setCooldownCountdown] = useState(0);
+  const html5QrScannerRef = useRef(null);
+  const qrFileInputRef = useRef(null);
+  const lastScanTimestampRef = useRef(0);
+  const cooldownTimerRef = useRef(null);
+
+  // 3. Master Calendar State
+  const [calendarView, setCalendarView] = useState('month'); // 'month', 'week', 'day'
+  const [calendarRooms, setCalendarRooms] = useState([]);
+  const [calendarBookings, setCalendarBookings] = useState([]);
+  const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
+  const today = new Date();
+  const [calendarYear, setCalendarYear] = useState(today.getFullYear());
+  const [calendarMonth, setCalendarMonth] = useState(today.getMonth()); // 0-11
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState(today);
+
+  // 4. All Bookings State
+  const [allBookings, setAllBookings] = useState([]);
+  const [bookingFilterDate, setBookingFilterDate] = useState('All');
+  const [bookingFilterLocation, setBookingFilterLocation] = useState('All');
+  const [bookingFilterStatus, setBookingFilterStatus] = useState('All');
+  const [bookingSearchQuery, setBookingSearchQuery] = useState('');
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
+
+  // 5. Room Operational Status State
+  const [roomStatuses, setRoomStatuses] = useState([]);
+  const [isLoadingRoomStatus, setIsLoadingRoomStatus] = useState(false);
+
+  // Booking Detail Modal
+  const [selectedBookingForModal, setSelectedBookingForModal] = useState(null);
+
+  // ----------------------------------------------------
+  // OWNER EXECUTIVE STATE
+  // ----------------------------------------------------
+
+  // 6. Revenue Analytics State
   const [revenueData, setRevenueData] = useState(null);
   const [isLoadingRevenue, setIsLoadingRevenue] = useState(false);
 
-  // 2. Room Management State (Section 19-23)
+  // 7. Room Customization & Pricing State
   const [rooms, setRooms] = useState([]);
   const [isLoadingRooms, setIsLoadingRooms] = useState(false);
   const [isSavingRoom, setIsSavingRoom] = useState(false);
@@ -30,9 +98,9 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   const [roomFormStatus, setRoomFormStatus] = useState('AVAILABLE');
   const [roomFormImages, setRoomFormImages] = useState([]);
   const [roomFormPaymentMethods, setRoomFormPaymentMethods] = useState(['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
-  const fileInputRef = useRef(null);
+  const roomFileInputRef = useRef(null);
 
-  // 3. Inclusions State (Section 13-14)
+  // 8. Inclusions State
   const [inclusions, setInclusions] = useState([]);
   const [showInclusionModal, setShowInclusionModal] = useState(false);
   const [editingInclusion, setEditingInclusion] = useState(null);
@@ -41,7 +109,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   const [incPrice, setIncPrice] = useState(200);
   const [incActive, setIncActive] = useState(true);
 
-  // 4. Policies State (Section 16)
+  // 9. Policies State
   const [policies, setPolicies] = useState([]);
   const [showPolicyModal, setShowPolicyModal] = useState(false);
   const [editingPolicy, setEditingPolicy] = useState(null);
@@ -50,12 +118,12 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   const [polOrder, setPolOrder] = useState(1);
   const [polActive, setPolActive] = useState(true);
 
-  // 5. Guest Experiences (Approval Workflow - Section 4-6)
+  // 10. Guest Experiences
   const [guestExpData, setGuestExpData] = useState({ pending: [], approved: [], declined: [] });
-  const [expSubTab, setExpSubTab] = useState('pending'); // 'pending', 'approved', 'declined'
+  const [expSubTab, setExpSubTab] = useState('pending');
   const [isLoadingExp, setIsLoadingExp] = useState(false);
 
-  // 6. User Management State
+  // 11. User Management State
   const [users, setUsers] = useState([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
@@ -64,7 +132,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
   const [newUserPassword, setNewUserPassword] = useState('password123');
   const [newUserRole, setNewUserRole] = useState('STAFF');
 
-  // 7. System Settings & Audit Log State (Section 61-62)
+  // 12. System Settings & Audit Log State
   const [systemSettings, setSystemSettings] = useState({
     security_deposit_amount: '1000',
     meta_messenger_url: 'https://m.me/cgchillcation',
@@ -77,6 +145,13 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
 
   // Auto-fetch data based on active tab
   useEffect(() => {
+    // Operations
+    if (activeTab === 'daily_log') fetchDailyArrivalsDepartures(selectedDate);
+    if (activeTab === 'calendar') fetchCalendarData();
+    if (activeTab === 'bookings') fetchAllBookings();
+    if (activeTab === 'room_status') fetchRoomStatuses();
+
+    // Executive
     if (activeTab === 'revenue') fetchRevenue();
     if (activeTab === 'rooms') fetchRooms();
     if (activeTab === 'inclusions') fetchInclusions();
@@ -87,9 +162,362 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
       fetchSettings();
       fetchAuditLogs();
     }
+  }, [activeTab, selectedDate]);
+
+  // ----------------------------------------------------
+  // API FETCH HELPERS
+  // ----------------------------------------------------
+
+  const fetchDailyArrivalsDepartures = async (dateStr) => {
+    setIsLoadingDaily(true);
+    try {
+      const res = await fetch(`/api/admin/arrivals-departures?date=${dateStr}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setDailyData(data);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingDaily(false);
+    }
+  };
+
+  const handlePrevDay = () => {
+    const current = new Date(selectedDate);
+    const prev = new Date(current.getTime() - 86400000);
+    setSelectedDate(formatDate(prev));
+  };
+
+  const handleNextDay = () => {
+    const current = new Date(selectedDate);
+    const next = new Date(current.getTime() + 86400000);
+    setSelectedDate(formatDate(next));
+  };
+
+  const handleToday = () => {
+    setSelectedDate(formatDate(new Date()));
+  };
+
+  const fetchCalendarData = async () => {
+    setIsLoadingCalendar(true);
+    try {
+      const res = await fetch('/api/admin/calendar', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCalendarRooms(data.rooms || []);
+        setCalendarBookings(data.bookings || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingCalendar(false);
+    }
+  };
+
+  const fetchAllBookings = async () => {
+    setIsLoadingBookings(true);
+    try {
+      let queryParams = new URLSearchParams();
+      if (bookingFilterLocation !== 'All') queryParams.append('location', bookingFilterLocation);
+      if (bookingFilterStatus !== 'All') queryParams.append('status', bookingFilterStatus);
+      if (bookingSearchQuery) queryParams.append('search', bookingSearchQuery);
+
+      const res = await fetch(`/api/admin/bookings?${queryParams.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        let list = data.bookings || [];
+        const todayStr = formatDate(new Date());
+        const yesterdayStr = formatDate(new Date(Date.now() - 86400000));
+        const tomorrowStr = formatDate(new Date(Date.now() + 86400000));
+
+        if (bookingFilterDate === 'Today') {
+          list = list.filter((b) => b.check_in === todayStr || b.check_out === todayStr);
+        } else if (bookingFilterDate === 'Yesterday') {
+          list = list.filter((b) => b.check_in === yesterdayStr || b.check_out === yesterdayStr);
+        } else if (bookingFilterDate === 'Tomorrow') {
+          list = list.filter((b) => b.check_in === tomorrowStr || b.check_out === tomorrowStr);
+        }
+
+        setAllBookings(list);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  };
+
+  const fetchRoomStatuses = async () => {
+    setIsLoadingRoomStatus(true);
+    try {
+      const res = await fetch('/api/admin/room-status', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) setRoomStatuses(data.roomStatuses || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingRoomStatus(false);
+    }
+  };
+
+  const handleUpdateCheckInStatus = async (bookingId, newStatus) => {
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/checkin-status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ checkInStatus: newStatus })
+      });
+      if (res.ok) {
+        fetchDailyArrivalsDepartures(selectedDate);
+        fetchAllBookings();
+        fetchRoomStatuses();
+        if (selectedBookingForModal && selectedBookingForModal.id === bookingId) {
+          setSelectedBookingForModal((prev) => ({ ...prev, check_in_status: newStatus }));
+        }
+        if (scannedBooking && scannedBooking.id === bookingId) {
+          handleLookupQR(scannedBooking.reference_number);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleSecurityDepositAction = async (bookingId, action, notes = '') => {
+    try {
+      const res = await fetch(`/api/admin/bookings/${bookingId}/security-deposit`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ action, notes })
+      });
+      if (res.ok) {
+        fetchDailyArrivalsDepartures(selectedDate);
+        fetchAllBookings();
+        if (scannedBooking && scannedBooking.id === bookingId) {
+          handleLookupQR(scannedBooking.reference_number);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Audio Feedback for QR
+  const playBeep = () => {
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(880, ctx.currentTime);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.15);
+    } catch (e) {}
+  };
+
+  const extractReferenceCode = (raw) => {
+    if (!raw) return '';
+    const match = String(raw).match(/CGC-\d{8}-\d{4}/i);
+    if (match) return match[0].toUpperCase();
+    return String(raw).trim();
+  };
+
+  const handleScannedResult = async (decodedText) => {
+    const ref = extractReferenceCode(decodedText);
+    if (!ref) return;
+
+    const now = Date.now();
+    if (now - lastScanTimestampRef.current < 3000) return;
+    lastScanTimestampRef.current = now;
+
+    playBeep();
+    setScanSuccessFeedback(true);
+    setScannedRefInput(ref);
+
+    if (cooldownTimerRef.current) clearInterval(cooldownTimerRef.current);
+    setCooldownCountdown(3);
+    cooldownTimerRef.current = setInterval(() => {
+      setCooldownCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(cooldownTimerRef.current);
+          setScanSuccessFeedback(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    await handleLookupQR(ref);
+  };
+
+  const stopCameraScanner = async () => {
+    if (html5QrScannerRef.current) {
+      try {
+        if (html5QrScannerRef.current.isScanning) {
+          await html5QrScannerRef.current.stop();
+        }
+        await html5QrScannerRef.current.clear();
+      } catch (err) {
+        console.warn('Camera stop warning:', err);
+      }
+      html5QrScannerRef.current = null;
+    }
+    setIsCameraActive(false);
+    setIsStartingCamera(false);
+  };
+
+  const startCameraScanner = async (cameraIdToUse) => {
+    setQrScanError(null);
+    setIsStartingCamera(true);
+
+    try {
+      if (html5QrScannerRef.current) {
+        await stopCameraScanner();
+      }
+
+      let devices = [];
+      try {
+        devices = await Html5Qrcode.getCameras();
+        setCameraDevices(devices);
+      } catch (e) {
+        console.warn('Could not enumerate cameras:', e);
+      }
+
+      const targetCamera = cameraIdToUse || selectedCameraId || (devices.length > 0 ? (devices.find(d => d.label.toLowerCase().includes('back') || d.label.toLowerCase().includes('environment'))?.id || devices[0].id) : { facingMode: 'environment' });
+
+      const qrScanner = new Html5Qrcode('qr-reader-viewport');
+      html5QrScannerRef.current = qrScanner;
+
+      await qrScanner.start(
+        targetCamera,
+        { fps: 15, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+        (decodedText) => handleScannedResult(decodedText),
+        () => {}
+      );
+
+      setIsCameraActive(true);
+    } catch (err) {
+      console.error('Camera startup error:', err);
+      let msg = 'Unable to access camera. Please allow camera permissions in your browser or use image upload / reference input.';
+      if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        msg = 'Live camera scanning requires HTTPS. You can upload voucher screenshots or enter the reference code below.';
+      }
+      setQrScanError(msg);
+      setIsCameraActive(false);
+    } finally {
+      setIsStartingCamera(false);
+    }
+  };
+
+  const handleSwitchCamera = async (newCameraId) => {
+    setSelectedCameraId(newCameraId);
+    if (isCameraActive) {
+      await startCameraScanner(newCameraId);
+    }
+  };
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setQrScanError(null);
+    setIsScanning(true);
+
+    try {
+      const tempScanner = new Html5Qrcode('qr-reader-file-temp');
+      const decoded = await tempScanner.scanFile(file, true);
+      await tempScanner.clear();
+      await handleScannedResult(decoded);
+    } catch (err) {
+      setQrScanError('Could not detect a valid QR Code in this image. Please ensure the QR code is clearly visible, or enter the reference number manually.');
+    } finally {
+      setIsScanning(false);
+      if (qrFileInputRef.current) qrFileInputRef.current.value = '';
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab !== 'qr_scanner') {
+      stopCameraScanner();
+    }
+    return () => {
+      stopCameraScanner();
+    };
   }, [activeTab]);
 
-  // API Call Helpers
+  const handleLookupQR = async (ref) => {
+    if (!ref || !ref.trim()) return;
+    setIsScanning(true);
+    setQrScanError(null);
+
+    try {
+      const cleanRef = ref.trim();
+      const res = await fetch(`/api/admin/qr/lookup/${encodeURIComponent(cleanRef)}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setQrScanError(data.error || 'No matching booking found for this QR code.');
+        setScannedBooking(null);
+      } else {
+        setScannedBooking(data.booking);
+      }
+    } catch (err) {
+      setQrScanError('Failed to verify QR Code.');
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
+  const handleUpdateRoomOperationalStatus = async (roomId, newStatus) => {
+    try {
+      const res = await fetch(`/api/admin/rooms/${roomId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        fetchRoomStatuses();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const MONTH_NAMES = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+  const firstDayOfWeek = new Date(calendarYear, calendarMonth, 1).getDay();
+
+  // ----------------------------------------------------
+  // OWNER EXECUTIVE API FETCHES & HANDLERS
+  // ----------------------------------------------------
+
   const fetchRevenue = async () => {
     setIsLoadingRevenue(true);
     try {
@@ -111,7 +539,6 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
       if (data.rooms) {
         setRooms(data.rooms);
       } else {
-        // Fallback to public rooms endpoint
         const pubRes = await fetch('/api/rooms', { headers: { Authorization: `Bearer ${token}` } });
         const pubData = await pubRes.json();
         if (pubData.rooms) setRooms(pubData.rooms);
@@ -397,7 +824,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
     }
   };
 
-  // Handlers for Guest Experiences Workflow (Approve / Decline / Delete)
+  // Handlers for Guest Experiences Workflow
   const handleReviewStatus = async (expId, status) => {
     try {
       await fetch(`/api/owner/guest-experiences/${expId}`, {
@@ -446,148 +873,861 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
     }
   };
 
-  const ownerNavTabs = [
+  // Unified Navigation Menu
+  const operationsNavTabs = [
+    { id: 'daily_log', label: 'Daily Arrivals & Departures', desc: 'Check-in & Check-out Flow', icon: Clock },
+    { id: 'qr_scanner', label: 'QR Scanner', desc: 'Fast Booking Verification', icon: QrCode },
+    { id: 'calendar', label: 'Master Calendar', desc: 'Visual Schedule & Timeline', icon: Calendar },
+    { id: 'bookings', label: 'All Bookings Log', desc: 'Search & Snapshot Records', icon: Search },
+    { id: 'room_status', label: 'Room Status', desc: 'Real-time Suite Conditions', icon: ShieldCheck },
+  ];
+
+  const executiveNavTabs = [
     { id: 'revenue', label: 'Revenue Analytics', desc: 'Financial Overview', icon: DollarSign },
-    { id: 'rooms', label: 'Room Management', desc: 'Suites & Pricing', icon: Layers },
+    { id: 'rooms', label: 'Room Management', desc: 'Suites, Pricing & Photos', icon: Layers },
     { id: 'inclusions', label: 'Inclusions Config', desc: 'Add-ons & Amenities', icon: Sliders },
     { id: 'policies', label: 'Rules & Policies', desc: 'House Guidelines', icon: FileText },
     { id: 'experiences', label: 'Guest Reviews & Approval', desc: 'Moderation Queue', icon: Star, badge: guestExpData?.pending?.length > 0 ? guestExpData.pending.length : null },
-    { id: 'users', label: 'Staff Accounts', desc: 'Roles & Access', icon: Users },
+    { id: 'users', label: 'Staff Accounts', desc: 'Roles & Access Control', icon: Users },
     { id: 'settings', label: 'Settings & Audit Log', desc: 'System & Security', icon: Settings },
   ];
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-stretch lg:items-start pb-16">
-
-      {/* ================= OWNER EXECUTIVE SIDEBAR NAV ================= */}
-      <aside className="w-full lg:w-72 xl:w-80 flex-shrink-0 lg:sticky lg:top-28 z-20">
-        <div className="liquid-glass rounded-3xl p-3 sm:p-4 border border-white/10 shadow-2xl backdrop-blur-2xl space-y-3">
-
-          <div className="px-3 py-2 border-b border-white/5 hidden lg:flex items-center justify-between">
+      
+      {/* ================= UNIFIED EXECUTIVE SIDEBAR NAV ================= */}
+      <aside className="w-full lg:w-72 xl:w-80 flex-shrink-0 lg:sticky lg:top-24 z-20">
+        <div className="liquid-glass rounded-3xl p-3 sm:p-4 border border-white/10 shadow-2xl backdrop-blur-2xl space-y-4 max-h-[calc(100vh-7rem)] overflow-y-auto no-scrollbar">
+          
+          {/* Header */}
+          <div className="px-3 py-2 border-b border-white/10 flex items-center justify-between">
             <div>
-              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-zinc-300 block">
-                Executive Console
+              <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-white block">
+                Executive Command
               </span>
-              <span className="text-[9px] font-mono text-zinc-500 block uppercase">
-                Owner Controls
+              <span className="text-[9px] font-mono text-zinc-400 block uppercase">
+                All-in-One Operations
               </span>
             </div>
-            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-zinc-300 font-bold border border-white/10">
-              PORTAL
+            <span className="text-[9px] font-mono px-2 py-0.5 rounded-full bg-amber-400 text-black font-extrabold uppercase">
+              OWNER
             </span>
           </div>
 
-          <nav className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 no-scrollbar">
-            {ownerNavTabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`w-auto lg:w-full px-3.5 py-3 rounded-2xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center justify-between gap-3 group text-left ${isActive
-                    ? 'bg-white text-black shadow-lg shadow-white/10 scale-[1.01]'
-                    : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 hover:border-white/15'
+          {/* Section 1: Operations */}
+          <div className="space-y-1">
+            <span className="px-3 text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">
+              Front Desk & Operations
+            </span>
+            <div className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 no-scrollbar">
+              {operationsNavTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-auto lg:w-full px-3 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center justify-between gap-3 group text-left ${
+                      isActive
+                        ? 'bg-white text-black shadow-lg shadow-white/10 scale-[1.01]'
+                        : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 hover:border-white/15'
                     }`}
-                >
-                  <div className="flex items-center space-x-3 min-w-0">
-                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${isActive ? 'bg-black text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white group-hover:bg-white/10'
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                        isActive ? 'bg-black text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white group-hover:bg-white/10'
                       }`}>
-                      <Icon className="w-4 h-4" />
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block truncate font-bold text-[11px]">{tab.label}</span>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <span className="block truncate font-bold text-[11px] sm:text-xs">{tab.label}</span>
-                      <span className={`hidden lg:block text-[9px] font-mono normal-case tracking-normal truncate ${isActive ? 'text-zinc-600 font-medium' : 'text-zinc-500 group-hover:text-zinc-400'
-                        }`}>
-                        {tab.desc}
-                      </span>
-                    </div>
-                  </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-                  {tab.badge ? (
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-extrabold flex-shrink-0 ${isActive
-                      ? 'bg-black text-amber-300'
-                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+          {/* Section 2: Executive Management */}
+          <div className="space-y-1 pt-2 border-t border-white/10">
+            <span className="px-3 text-[10px] font-mono uppercase tracking-widest text-zinc-400 block font-bold">
+              Management & Controls
+            </span>
+            <div className="flex lg:flex-col gap-1.5 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0 no-scrollbar">
+              {executiveNavTabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`w-auto lg:w-full px-3 py-2.5 rounded-2xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all flex items-center justify-between gap-3 group text-left ${
+                      isActive
+                        ? 'bg-white text-black shadow-lg shadow-white/10 scale-[1.01]'
+                        : 'bg-white/5 hover:bg-white/10 text-zinc-400 hover:text-white border border-white/5 hover:border-white/15'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2.5 min-w-0">
+                      <div className={`w-7 h-7 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${
+                        isActive ? 'bg-black text-white' : 'bg-white/5 text-zinc-400 group-hover:text-white group-hover:bg-white/10'
                       }`}>
-                      {tab.badge}
-                    </span>
-                  ) : null}
-                </button>
-              );
-            })}
-          </nav>
+                        <Icon className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block truncate font-bold text-[11px]">{tab.label}</span>
+                      </div>
+                    </div>
+                    {tab.badge && (
+                      <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-mono font-bold ${
+                        isActive ? 'bg-rose-500 text-white' : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                      }`}>
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
         </div>
       </aside>
 
       {/* ================= ACTIVE TAB MAIN CONTENT ================= */}
       <div className="flex-1 min-w-0 space-y-6">
 
-        {/* ================= TAB 1: REVENUE ANALYTICS ================= */}
-        {activeTab === 'revenue' && (
+        {/* ----------------- TAB: DAILY ARRIVALS & DEPARTURES LOG ----------------- */}
+        {activeTab === 'daily_log' && (
           <div className="space-y-6">
-            <div className="p-6 rounded-3xl liquid-glass border border-white/15 shadow-xl">
-              <h2 className="text-2xl font-black text-white">Financial & Booking Performance</h2>
-              <p className="text-xs text-zinc-400 font-mono mt-0.5">Real-time revenue metrics from confirmed reservations</p>
+            <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">
+                  Asia/Manila Operations
+                </span>
+                <h2 className="text-xl sm:text-2xl font-black text-white">
+                  Daily Arrival & Departure Management
+                </h2>
+              </div>
+
+              <div className="flex items-center space-x-2 self-start md:self-auto">
+                <button
+                  onClick={handlePrevDay}
+                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 text-xs font-bold flex items-center space-x-1"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Prev</span>
+                </button>
+                <button
+                  onClick={handleToday}
+                  className="px-4 py-2 rounded-xl bg-white text-black font-bold text-xs uppercase tracking-wider shadow-md hover:bg-zinc-200"
+                >
+                  Today
+                </button>
+                <button
+                  onClick={handleNextDay}
+                  className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/15 text-xs font-bold flex items-center space-x-1"
+                >
+                  <span className="hidden sm:inline">Next</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs font-mono focus:outline-none focus:border-white/40"
+                />
+              </div>
             </div>
 
-            {/* Revenue KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="p-5 rounded-2xl bg-black/60 border border-white/10">
-                <span className="text-xs text-zinc-400 font-mono uppercase">Total Gross Revenue</span>
-                <div className="text-3xl font-black text-emerald-400 font-mono mt-1">
-                  ₱{(revenueData?.totalRevenue || 0).toLocaleString()}
+            {/* Metrics */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div
+                onClick={() => setDailySubTab('arrivals')}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  dailySubTab === 'arrivals' ? 'bg-white/10 border-white shadow-lg' : 'bg-black/40 border-white/10'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Arrivals on {selectedDate}</span>
+                  <LogIn className="w-4 h-4 text-emerald-400" />
                 </div>
+                <span className="text-2xl font-black text-white font-mono">{dailyData.arrivals?.length || 0}</span>
               </div>
 
-              <div className="p-5 rounded-2xl bg-black/60 border border-white/10">
-                <span className="text-xs text-zinc-400 font-mono uppercase">Paid Bookings</span>
-                <div className="text-3xl font-black text-white font-mono mt-1">
-                  {revenueData?.paidBookingsCount || 0}
+              <div
+                onClick={() => setDailySubTab('departures')}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  dailySubTab === 'departures' ? 'bg-white/10 border-white shadow-lg' : 'bg-black/40 border-white/10'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Departures on {selectedDate}</span>
+                  <LogOut className="w-4 h-4 text-rose-400" />
                 </div>
+                <span className="text-2xl font-black text-white font-mono">{dailyData.departures?.length || 0}</span>
               </div>
 
-              <div className="p-5 rounded-2xl bg-black/60 border border-white/10">
-                <span className="text-xs text-zinc-400 font-mono uppercase">Pending Payments</span>
-                <div className="text-3xl font-black text-amber-400 font-mono mt-1">
-                  {revenueData?.pendingPaymentsCount || 0}
+              <div
+                onClick={() => setDailySubTab('in_house')}
+                className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                  dailySubTab === 'in_house' ? 'bg-white/10 border-white shadow-lg' : 'bg-black/40 border-white/10'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Currently In-House</span>
+                  <CheckCircle2 className="w-4 h-4 text-blue-400" />
                 </div>
-              </div>
-
-              <div className="p-5 rounded-2xl bg-black/60 border border-white/10">
-                <span className="text-xs text-zinc-400 font-mono uppercase">Deposits in Custody</span>
-                <div className="text-3xl font-black text-blue-400 font-mono mt-1">
-                  ₱{(revenueData?.securityDepositsInCustody || 0).toLocaleString()}
-                </div>
+                <span className="text-2xl font-black text-white font-mono">{dailyData.inHouse?.length || 0}</span>
               </div>
             </div>
 
-            {/* Revenue by Location */}
-            <div className="p-6 rounded-3xl bg-black/50 border border-white/10 space-y-4">
-              <h3 className="text-lg font-bold text-white uppercase font-mono">Location Breakdown</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {(revenueData?.revenueByLocation || []).map((loc) => (
-                  <div key={loc.location} className="p-4 rounded-2xl bg-white/5 border border-white/10 flex justify-between items-center">
-                    <div>
-                      <span className="text-sm font-bold text-white block">{loc.location}</span>
-                      <span className="text-xs text-zinc-400 font-mono">{loc.total_bookings} Total Stays</span>
+            {/* List for active subtab */}
+            <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-4">
+              <h3 className="text-base font-bold text-white font-mono uppercase">
+                {dailySubTab === 'arrivals' && `Expected Arrivals (${dailyData.arrivals?.length || 0})`}
+                {dailySubTab === 'departures' && `Expected Departures (${dailyData.departures?.length || 0})`}
+                {dailySubTab === 'in_house' && `Currently In-House Guests (${dailyData.inHouse?.length || 0})`}
+              </h3>
+
+              {isLoadingDaily ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-400" />
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {(dailySubTab === 'arrivals' ? dailyData.arrivals : dailySubTab === 'departures' ? dailyData.departures : dailyData.inHouse)?.length === 0 ? (
+                    <div className="text-center py-8 text-zinc-500 text-xs italic">
+                      No guests scheduled for this category.
                     </div>
-                    <span className="text-xl font-black text-emerald-400 font-mono">
-                      ₱{Number(loc.revenue || 0).toLocaleString()}
-                    </span>
+                  ) : (
+                    (dailySubTab === 'arrivals' ? dailyData.arrivals : dailySubTab === 'departures' ? dailyData.departures : dailyData.inHouse).map((item) => (
+                      <div
+                        key={item.id}
+                        className="p-4 rounded-2xl bg-black/60 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-black text-white">{item.guest_name}</span>
+                            <span className="text-xs font-mono text-zinc-400">&bull; {item.room_name} ({item.location})</span>
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-zinc-300">
+                              {item.reference_number}
+                            </span>
+                          </div>
+                          <div className="text-xs text-zinc-400 flex flex-wrap gap-3">
+                            <span>Check-in: <strong className="text-white font-mono">{item.check_in}</strong></span>
+                            <span>Check-out: <strong className="text-white font-mono">{item.check_out}</strong></span>
+                            <span>Status: <strong className="text-amber-400 uppercase font-mono">{item.check_in_status}</strong></span>
+                            <span>Deposit: <strong className="text-emerald-400 font-mono">{item.deposit_status || 'PENDING'}</strong></span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-wrap items-center gap-2 self-end md:self-auto">
+                          {item.check_in_status === 'NOT_CHECKED_IN' && (
+                            <button
+                              onClick={() => handleUpdateCheckInStatus(item.id, 'CHECKED_IN')}
+                              className="px-3.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold uppercase tracking-wider flex items-center space-x-1"
+                            >
+                              <LogIn className="w-3.5 h-3.5" />
+                              <span>Mark Check-in</span>
+                            </button>
+                          )}
+                          {item.check_in_status === 'CHECKED_IN' && (
+                            <button
+                              onClick={() => handleUpdateCheckInStatus(item.id, 'CHECKED_OUT')}
+                              className="px-3.5 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold uppercase tracking-wider flex items-center space-x-1"
+                            >
+                              <LogOut className="w-3.5 h-3.5" />
+                              <span>Mark Check-out</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setSelectedBookingForModal(item)}
+                            className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center space-x-1"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Details</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: QR SCANNER ----------------- */}
+        {activeTab === 'qr_scanner' && (
+          <div className="space-y-6">
+            <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Verification Engine</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white">QR Code Fast Verification & Check-In</h2>
+              </div>
+              <div className="flex items-center space-x-1 bg-black/50 p-1 rounded-2xl border border-white/10">
+                <button
+                  onClick={() => setScannerMode('camera')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center space-x-1.5 ${
+                    scannerMode === 'camera' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Camera className="w-3.5 h-3.5" />
+                  <span>Live Camera</span>
+                </button>
+                <button
+                  onClick={() => {
+                    stopCameraScanner();
+                    setScannerMode('upload');
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold uppercase transition-all flex items-center space-x-1.5 ${
+                    scannerMode === 'upload' ? 'bg-white text-black' : 'text-zinc-400 hover:text-white'
+                  }`}
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Upload Image</span>
+                </button>
+              </div>
+            </div>
+
+            {/* QR Scanner Display */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="p-6 rounded-3xl bg-black/60 border border-white/10 space-y-4 flex flex-col items-center justify-center text-center">
+                {scannerMode === 'camera' ? (
+                  <div className="w-full space-y-4">
+                    <div className="relative w-full max-w-sm mx-auto aspect-square rounded-3xl overflow-hidden bg-black border-2 border-dashed border-white/20 flex items-center justify-center shadow-2xl">
+                      <div id="qr-reader-viewport" className="w-full h-full" />
+                      {!isCameraActive && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center p-6 space-y-3 bg-black/80">
+                          <QrCode className="w-12 h-12 text-zinc-500" />
+                          <button
+                            onClick={() => startCameraScanner()}
+                            disabled={isStartingCamera}
+                            className="liquid-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-2"
+                          >
+                            {isStartingCamera ? <Loader2 className="w-4 h-4 animate-spin" /> : <Camera className="w-4 h-4" />}
+                            <span>Start Camera Scan</span>
+                          </button>
+                        </div>
+                      )}
+                      {scanSuccessFeedback && (
+                        <div className="absolute inset-0 bg-emerald-500/20 border-4 border-emerald-400 flex flex-col items-center justify-center p-4 backdrop-blur-sm animate-pulse">
+                          <CheckCircle2 className="w-12 h-12 text-emerald-400 mb-2" />
+                          <span className="text-sm font-black text-white uppercase font-mono">QR Verified!</span>
+                          <span className="text-[11px] font-mono text-emerald-300">Ready in {cooldownCountdown}s...</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {isCameraActive && (
+                      <div className="flex items-center justify-center gap-2">
+                        {cameraDevices.length > 1 && (
+                          <button
+                            onClick={() => {
+                              const currIdx = cameraDevices.findIndex(d => d.id === selectedCameraId);
+                              const nextDevice = cameraDevices[(currIdx + 1) % cameraDevices.length];
+                              handleSwitchCamera(nextDevice.id);
+                            }}
+                            className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center space-x-1.5"
+                          >
+                            <SwitchCamera className="w-3.5 h-3.5" />
+                            <span>Switch Camera</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={stopCameraScanner}
+                          className="px-3.5 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center space-x-1.5"
+                        >
+                          <VideoOff className="w-3.5 h-3.5" />
+                          <span>Stop Camera</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                ))}
+                ) : (
+                  <div className="w-full max-w-sm space-y-4">
+                    <div id="qr-reader-file-temp" className="hidden" />
+                    <label
+                      onClick={() => qrFileInputRef.current?.click()}
+                      className="w-full aspect-square rounded-3xl border-2 border-dashed border-white/20 hover:border-amber-400/60 p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-white/5 hover:bg-white/10 transition-all group"
+                    >
+                      <Upload className="w-10 h-10 text-amber-400 mb-3 group-hover:scale-110 transition-transform" />
+                      <span className="font-bold text-white text-xs">Tap to Upload QR Voucher Image</span>
+                      <span className="text-[10px] text-zinc-400 mt-1">Select screenshot from photos</span>
+                    </label>
+                    <input
+                      ref={qrFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+                  </div>
+                )}
+
+                {/* Manual Reference Fallback */}
+                <div className="w-full pt-4 border-t border-white/10 space-y-2">
+                  <span className="text-[10px] font-mono text-zinc-400 block uppercase">Or Enter Booking Reference:</span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. CGC-20261006-1234"
+                      value={scannedRefInput}
+                      onChange={(e) => setScannedRefInput(e.target.value)}
+                      className="flex-1 h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs font-mono uppercase focus:border-amber-400/60 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => handleLookupQR(scannedRefInput)}
+                      className="liquid-btn-primary px-4 rounded-xl text-xs font-bold uppercase"
+                    >
+                      Search
+                    </button>
+                  </div>
+                </div>
+
+                {qrScanError && (
+                  <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/30 text-rose-300 text-xs flex items-center space-x-2">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>{qrScanError}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Scanned Booking Result */}
+              <div className="p-6 rounded-3xl bg-black/60 border border-white/10 space-y-4">
+                <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block">Verification Card</span>
+                {scannedBooking ? (
+                  <div className="space-y-4 text-xs">
+                    <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-base font-black text-white">{scannedBooking.guest_name}</span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          {scannedBooking.booking_status}
+                        </span>
+                      </div>
+                      <div className="text-zinc-400 space-y-1">
+                        <div>Room: <strong className="text-white">{scannedBooking.room_name} ({scannedBooking.location})</strong></div>
+                        <div>Reference: <strong className="text-white font-mono">{scannedBooking.reference_number}</strong></div>
+                        <div>Dates: <strong className="text-white font-mono">{scannedBooking.check_in} &rarr; {scannedBooking.check_out}</strong></div>
+                        <div>Guests: <strong className="text-white">{scannedBooking.guest_count}</strong> &bull; Contact: <strong className="text-white">{scannedBooking.contact_number}</strong></div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 rounded-2xl bg-black/40 border border-white/10 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-zinc-400">Total Amount:</span>
+                        <span className="font-bold text-white font-mono">₱{Number(scannedBooking.breakdown?.total_amount || scannedBooking.amount || 0).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-400">Check-in Status:</span>
+                        <span className="font-bold text-amber-400 font-mono">{scannedBooking.check_in_status}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-zinc-400">Security Deposit:</span>
+                        <span className="font-bold text-emerald-400 font-mono">{scannedBooking.securityDeposit?.payment_status || 'PENDING'}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {scannedBooking.check_in_status === 'NOT_CHECKED_IN' && (
+                        <button
+                          onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_IN')}
+                          className="flex-1 py-2.5 rounded-xl bg-emerald-500 text-black font-bold uppercase tracking-wider text-xs shadow-lg hover:bg-emerald-400"
+                        >
+                          Confirm Check-In
+                        </button>
+                      )}
+                      {scannedBooking.check_in_status === 'CHECKED_IN' && (
+                        <button
+                          onClick={() => handleUpdateCheckInStatus(scannedBooking.id, 'CHECKED_OUT')}
+                          className="flex-1 py-2.5 rounded-xl bg-rose-500 text-white font-bold uppercase tracking-wider text-xs shadow-lg hover:bg-rose-400"
+                        >
+                          Confirm Check-Out
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setSelectedBookingForModal(scannedBooking)}
+                        className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold uppercase text-xs"
+                      >
+                        Full Snapshot
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-16 text-zinc-500 italic text-xs">
+                    Scan a QR code or enter a reference above to view instant booking verification details.
+                  </div>
+                )}
               </div>
             </div>
           </div>
         )}
 
-        {/* ================= TAB 2: ROOM MANAGEMENT (Section 19-23) ================= */}
+        {/* ----------------- TAB: MASTER CALENDAR ----------------- */}
+        {activeTab === 'calendar' && (
+          <div className="space-y-6">
+            <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Schedule Matrix</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white">Master Reservation Calendar</h2>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    if (calendarMonth === 0) {
+                      setCalendarMonth(11);
+                      setCalendarYear(calendarYear - 1);
+                    } else {
+                      setCalendarMonth(calendarMonth - 1);
+                    }
+                  }}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <span className="text-sm font-bold text-white font-mono px-3">
+                  {MONTH_NAMES[calendarMonth]} {calendarYear}
+                </span>
+                <button
+                  onClick={() => {
+                    if (calendarMonth === 11) {
+                      setCalendarMonth(0);
+                      setCalendarYear(calendarYear + 1);
+                    } else {
+                      setCalendarMonth(calendarMonth + 1);
+                    }
+                  }}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="p-5 rounded-3xl bg-black/60 border border-white/10 overflow-x-auto shadow-2xl">
+              {isLoadingCalendar ? (
+                <div className="text-center py-16">
+                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-zinc-400" />
+                </div>
+              ) : (
+                <div className="min-w-[700px] space-y-2">
+                  <div className="grid grid-cols-7 gap-2 text-center text-xs font-mono font-bold text-zinc-400 pb-2 border-b border-white/10">
+                    <div>SUN</div><div>MON</div><div>TUE</div><div>WED</div><div>THU</div><div>FRI</div><div>SAT</div>
+                  </div>
+                  <div className="grid grid-cols-7 gap-2">
+                    {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                      <div key={`empty-${i}`} className="h-24 rounded-2xl bg-white/[0.02] border border-white/5 opacity-30" />
+                    ))}
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                      const dayNum = i + 1;
+                      const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+                      const dayBookings = calendarBookings.filter(b => b.check_in <= dateStr && b.check_out >= dateStr);
+                      const isToday = dateStr === formatDate(new Date());
+
+                      return (
+                        <div
+                          key={`day-${dayNum}`}
+                          className={`h-28 p-2 rounded-2xl border flex flex-col justify-between transition-all overflow-hidden ${
+                            isToday ? 'bg-white/15 border-white shadow-md' : 'bg-black/40 border-white/10 hover:border-white/20'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className={`text-xs font-mono font-bold ${isToday ? 'text-white font-black' : 'text-zinc-400'}`}>
+                              {dayNum}
+                            </span>
+                            {dayBookings.length > 0 && (
+                              <span className="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300">
+                                {dayBookings.length}
+                              </span>
+                            )}
+                          </div>
+                          <div className="space-y-1 overflow-y-auto no-scrollbar">
+                            {dayBookings.slice(0, 2).map((b) => (
+                              <div
+                                key={b.id}
+                                onClick={() => setSelectedBookingForModal(b)}
+                                className="px-1.5 py-0.5 rounded text-[9px] truncate bg-amber-400 text-black font-bold cursor-pointer hover:opacity-80"
+                                title={`${b.guest_name} - ${b.room_name}`}
+                              >
+                                {b.room_name}: {b.guest_name}
+                              </div>
+                            ))}
+                            {dayBookings.length > 2 && (
+                              <span className="text-[8px] text-zinc-400 block text-center">+{dayBookings.length - 2} more</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: ALL BOOKINGS ----------------- */}
+        {activeTab === 'bookings' && (
+          <div className="space-y-6">
+            <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Roster & Records</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white">All Booking Records</h2>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="text"
+                  placeholder="Search guest, ref, email..."
+                  value={bookingSearchQuery}
+                  onChange={(e) => setBookingSearchQuery(e.target.value)}
+                  className="h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none"
+                />
+                <select
+                  value={bookingFilterLocation}
+                  onChange={(e) => setBookingFilterLocation(e.target.value)}
+                  className="h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs"
+                >
+                  <option value="All">All Locations</option>
+                  <option value="Antipolo">Antipolo</option>
+                  <option value="Cainta">Cainta</option>
+                </select>
+                <select
+                  value={bookingFilterStatus}
+                  onChange={(e) => setBookingFilterStatus(e.target.value)}
+                  className="h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white text-xs"
+                >
+                  <option value="All">All Statuses</option>
+                  <option value="CONFIRMED">CONFIRMED</option>
+                  <option value="CHECKED_IN">CHECKED_IN</option>
+                  <option value="CHECKED_OUT">CHECKED_OUT</option>
+                  <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
+              {isLoadingBookings ? (
+                <div className="text-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin mx-auto text-zinc-400" />
+                </div>
+              ) : allBookings.length === 0 ? (
+                <div className="text-center py-12 text-zinc-500 text-xs italic">
+                  No matching bookings found.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {allBookings.map((b) => (
+                    <div
+                      key={b.id}
+                      className="p-4 rounded-2xl bg-black/60 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-black text-white">{b.room_name}</span>
+                          <span className="text-xs text-zinc-400 font-mono">({b.location})</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-zinc-300">
+                            {b.reference_number}
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            {b.booking_status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-zinc-300 flex flex-wrap gap-x-4 gap-y-1">
+                          <span>Guest: <strong className="text-white">{b.guest_name}</strong></span>
+                          <span>Dates: <strong className="text-white font-mono">{b.check_in} &rarr; {b.check_out}</strong></span>
+                          <span>Total: <strong className="text-white font-mono">₱{Number(b.total_amount || b.amount || 0).toLocaleString()}</strong></span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedBookingForModal(b)}
+                        className="liquid-btn-primary px-4 py-2 rounded-xl text-xs font-bold uppercase flex items-center space-x-1.5 self-end md:self-auto"
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                        <span>View Details</span>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: ROOM STATUS ----------------- */}
+        {activeTab === 'room_status' && (
+          <div className="space-y-6">
+            <div className="p-4 sm:p-6 rounded-3xl liquid-glass border border-white/15 flex items-center justify-between shadow-xl">
+              <div>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Live Conditions</span>
+                <h2 className="text-xl sm:text-2xl font-black text-white">Suite Status & Housekeeping</h2>
+              </div>
+              <button
+                onClick={fetchRoomStatuses}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center space-x-1.5"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {roomStatuses.map(({ room, currentBooking, operationalStatus }) => (
+                <div
+                  key={room.id}
+                  className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-4 shadow-xl flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="text-lg font-black text-white">{room.room_name}</h3>
+                      <span className="text-xs font-mono text-zinc-400">{room.location}</span>
+                    </div>
+
+                    <div className="mb-3">
+                      <span className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase border ${
+                        operationalStatus === 'AVAILABLE'
+                          ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                          : operationalStatus === 'CHECKED_IN'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                          : operationalStatus === 'MAINTENANCE'
+                          ? 'bg-rose-500/10 text-rose-400 border-rose-500/30'
+                          : 'bg-zinc-500/10 text-zinc-400 border-zinc-500/30'
+                      }`}>
+                        Status: {operationalStatus}
+                      </span>
+                    </div>
+
+                    <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1">
+                      <span className="text-[10px] text-zinc-400 uppercase font-mono block">Today's Guest</span>
+                      {currentBooking ? (
+                        <>
+                          <span className="font-bold text-white block">{currentBooking.guest_name}</span>
+                          <span className="text-zinc-400 block font-mono">{currentBooking.check_in} &rarr; {currentBooking.check_out}</span>
+                        </>
+                      ) : (
+                        <span className="text-zinc-500 italic block">No active guest staying today</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-white/10 flex items-center justify-between text-xs">
+                    <span className="text-zinc-400 font-mono">Change Status:</span>
+                    <select
+                      value={operationalStatus}
+                      onChange={(e) => handleUpdateRoomOperationalStatus(room.id, e.target.value)}
+                      className="px-2 py-1 rounded-lg bg-black border border-white/20 text-white text-xs font-mono focus:outline-none"
+                    >
+                      <option value="AVAILABLE">AVAILABLE</option>
+                      <option value="CHECKED_IN">CHECKED_IN</option>
+                      <option value="CHECKED_OUT">CHECKED_OUT</option>
+                      <option value="MAINTENANCE">MAINTENANCE</option>
+                      <option value="UNAVAILABLE">UNAVAILABLE</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: REVENUE ANALYTICS ----------------- */}
+        {activeTab === 'revenue' && (
+          <div className="space-y-6">
+            <div className="p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+              <div>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Executive Financials</span>
+                <h2 className="text-2xl font-black text-white">Revenue Performance & Analytics</h2>
+              </div>
+              <button
+                onClick={fetchRevenue}
+                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center space-x-1.5 self-start sm:self-auto"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Refresh</span>
+              </button>
+            </div>
+
+            {/* Metric Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-1 shadow-lg">
+                <span className="text-xs font-mono text-zinc-400 uppercase">Total Revenue</span>
+                <div className="text-3xl font-black text-white font-mono">
+                  ₱{Number(revenueData?.totalRevenue || 0).toLocaleString()}
+                </div>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-1 shadow-lg">
+                <span className="text-xs font-mono text-zinc-400 uppercase">Paid Reservations</span>
+                <div className="text-3xl font-black text-emerald-400 font-mono">
+                  {revenueData?.paidBookingsCount || 0}
+                </div>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-1 shadow-lg">
+                <span className="text-xs font-mono text-zinc-400 uppercase">Pending Payments</span>
+                <div className="text-3xl font-black text-amber-400 font-mono">
+                  {revenueData?.pendingPaymentsCount || 0}
+                </div>
+              </div>
+
+              <div className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-1 shadow-lg">
+                <span className="text-xs font-mono text-zinc-400 uppercase">Security Deposits Held</span>
+                <div className="text-3xl font-black text-cyan-400 font-mono">
+                  ₱{Number(revenueData?.securityDepositsInCustody || 0).toLocaleString()}
+                </div>
+              </div>
+            </div>
+
+            {/* Revenue By Location & Room */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="p-6 rounded-3xl bg-black/50 border border-white/10 space-y-4">
+                <h3 className="text-base font-bold text-white font-mono uppercase">Revenue by Branch</h3>
+                <div className="space-y-3">
+                  {revenueData?.revenueByLocation?.map((loc, idx) => (
+                    <div key={idx} className="p-3.5 rounded-2xl bg-black/60 border border-white/5 flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <MapPin className="w-4 h-4 text-amber-400" />
+                        <span className="font-bold text-white text-xs">{loc.location}</span>
+                      </div>
+                      <div className="text-right font-mono">
+                        <div className="text-sm font-black text-white">₱{Number(loc.revenue || 0).toLocaleString()}</div>
+                        <div className="text-[10px] text-zinc-400">{loc.total_bookings} bookings</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-black/50 border border-white/10 space-y-4">
+                <h3 className="text-base font-bold text-white font-mono uppercase">Top Performing Suites</h3>
+                <div className="space-y-3">
+                  {revenueData?.revenueByRoom?.map((rm, idx) => (
+                    <div key={idx} className="p-3.5 rounded-2xl bg-black/60 border border-white/5 flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-white text-xs block">{rm.room_name}</span>
+                        <span className="text-[10px] text-zinc-400 font-mono">{rm.location}</span>
+                      </div>
+                      <div className="text-right font-mono">
+                        <div className="text-sm font-black text-white">₱{Number(rm.revenue || 0).toLocaleString()}</div>
+                        <div className="text-[10px] text-zinc-400">{rm.total_bookings} stays</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ----------------- TAB: ROOM MANAGEMENT & PHOTOS ----------------- */}
         {activeTab === 'rooms' && (
           <div className="space-y-6">
             <div className="p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
               <div>
-                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Inventory Control</span>
-                <h2 className="text-2xl font-black text-white">Room Customization & Pricing</h2>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Inventory & Pricing</span>
+                <h2 className="text-2xl font-black text-white">Suite Customization & Photos</h2>
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {rooms.length > 0 && (
@@ -609,7 +1749,6 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
               </div>
             </div>
 
-            {/* Rooms Grid or Empty State */}
             {rooms.length === 0 ? (
               <div className="p-12 sm:p-16 rounded-3xl bg-black/40 border-2 border-dashed border-white/15 text-center space-y-4">
                 <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-zinc-400">
@@ -618,7 +1757,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 <div>
                   <h3 className="text-lg font-bold text-white">No Suites in Inventory</h3>
                   <p className="text-xs text-zinc-400 max-w-md mx-auto mt-1">
-                    Click "Add New Suite" to begin configuring your actual resort suites and pricing.
+                    Click "Add New Suite" to begin configuring your actual resort suites, pricing, and device photos.
                   </p>
                 </div>
                 <button
@@ -634,9 +1773,17 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 {rooms.map((room) => (
                   <div
                     key={room.id}
-                    className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-4 flex flex-col justify-between"
+                    className="p-5 rounded-3xl bg-black/60 border border-white/10 space-y-4 flex flex-col justify-between shadow-xl"
                   >
                     <div>
+                      {room.images && room.images.length > 0 && (
+                        <div className="w-full h-40 rounded-2xl overflow-hidden mb-3 border border-white/10 relative">
+                          <img src={room.images[0]} alt={room.room_name} className="w-full h-full object-cover" />
+                          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/80 text-[10px] font-mono text-white">
+                            📸 {room.images.length} photos
+                          </span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-lg font-black text-white">{room.room_name}</h3>
                         {room.is_featured && (
@@ -646,22 +1793,13 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                           </span>
                         )}
                       </div>
-
                       <div className="flex items-center space-x-2 text-xs text-zinc-400 mb-2">
                         <MapPin className="w-3.5 h-3.5" />
                         <span>{room.location}</span>
                         <span>&bull;</span>
                         <span className="font-mono text-white font-bold">₱{Number(room.price_per_night).toLocaleString()}/night</span>
                       </div>
-
-                      <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed mb-3">
-                        {room.description}
-                      </p>
-
-                      {/* Photos Summary */}
-                      <div className="text-[11px] font-mono text-zinc-400 bg-white/5 p-2 rounded-xl border border-white/10 mb-2">
-                        📸 {room.images?.length || 0} Photos Configured &bull; Status: {room.status}
-                      </div>
+                      <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed mb-3">{room.description}</p>
                     </div>
 
                     <div className="pt-3 border-t border-white/10 flex items-center justify-between">
@@ -672,7 +1810,6 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                         <Edit2 className="w-3.5 h-3.5" />
                         <span>Edit Suite</span>
                       </button>
-
                       <button
                         onClick={() => handleDeactivateRoom(room.id)}
                         className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 text-xs"
@@ -688,12 +1825,12 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
           </div>
         )}
 
-        {/* ================= TAB 3: INCLUSIONS CONFIGURATION (Section 13-14) ================= */}
+        {/* ----------------- TAB: INCLUSIONS CONFIG ----------------- */}
         {activeTab === 'inclusions' && (
           <div className="space-y-6">
             <div className="p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
               <div>
-                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Pricing & Add-ons</span>
+                <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Add-ons & Pricing</span>
                 <h2 className="text-2xl font-black text-white">Inclusion Price Configuration</h2>
               </div>
               <button
@@ -714,21 +1851,16 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
 
             <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
               {inclusions.map((inc) => (
-                <div
-                  key={inc.id}
-                  className="p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between"
-                >
+                <div key={inc.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between">
                   <div>
                     <div className="flex items-center space-x-2">
                       <h4 className="text-sm font-bold text-white">{inc.name}</h4>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${inc.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-700 text-zinc-400'
-                        }`}>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${inc.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
                         {inc.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                     <p className="text-xs text-zinc-400 mt-0.5">{inc.description}</p>
                   </div>
-
                   <div className="flex items-center space-x-4">
                     <span className="text-base font-black text-white font-mono">₱{Number(inc.price).toLocaleString()}</span>
                     <button
@@ -751,7 +1883,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
           </div>
         )}
 
-        {/* ================= TAB 4: RULES & POLICIES CONFIGURATION (Section 16) ================= */}
+        {/* ----------------- TAB: RULES & POLICIES ----------------- */}
         {activeTab === 'policies' && (
           <div className="space-y-6">
             <div className="p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
@@ -777,44 +1909,37 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
 
             <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
               {policies.map((pol) => (
-                <div
-                  key={pol.id}
-                  className="p-4 rounded-2xl bg-black/60 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3"
-                >
+                <div key={pol.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className="text-xs font-mono text-zinc-400">#{pol.display_order}</span>
                       <h4 className="text-sm font-bold text-white">{pol.title}</h4>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${pol.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-700 text-zinc-400'
-                        }`}>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${pol.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
                         {pol.is_active ? 'Active' : 'Inactive'}
                       </span>
                     </div>
                     <p className="text-xs text-zinc-300 leading-relaxed font-sans">{pol.content}</p>
                   </div>
-
-                  <div className="flex items-center space-x-2 self-end sm:self-auto">
-                    <button
-                      onClick={() => {
-                        setEditingPolicy(pol);
-                        setPolTitle(pol.title);
-                        setPolContent(pol.content);
-                        setPolOrder(pol.display_order);
-                        setPolActive(Boolean(pol.is_active));
-                        setShowPolicyModal(true);
-                      }}
-                      className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => {
+                      setEditingPolicy(pol);
+                      setPolTitle(pol.title);
+                      setPolContent(pol.content);
+                      setPolOrder(pol.display_order);
+                      setPolActive(Boolean(pol.is_active));
+                      setShowPolicyModal(true);
+                    }}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs self-end sm:self-auto"
+                  >
+                    <Edit2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* ================= TAB 5: GUEST EXPERIENCES APPROVAL WORKFLOW (Section 4-6) ================= */}
+        {/* ----------------- TAB: GUEST EXPERIENCES & APPROVALS ----------------- */}
         {activeTab === 'experiences' && (
           <div className="space-y-6">
             <div className="p-6 rounded-3xl liquid-glass border border-white/15 shadow-xl">
@@ -825,75 +1950,71 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
               </p>
             </div>
 
-            {/* Sub-tabs */}
-            <div className="flex space-x-2">
-              {['pending', 'approved', 'declined'].map((sub) => (
-                <button
-                  key={sub}
-                  onClick={() => setExpSubTab(sub)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${expSubTab === sub
-                    ? 'bg-white text-black shadow-md'
-                    : 'bg-white/5 text-zinc-400 hover:text-white border border-white/10'
-                    }`}
-                >
-                  {sub} ({guestExpData[sub]?.length || 0})
-                </button>
-              ))}
+            <div className="flex space-x-2 border-b border-white/10 pb-2 text-xs">
+              <button
+                onClick={() => setExpSubTab('pending')}
+                className={`px-4 py-2 rounded-xl font-bold uppercase ${
+                  expSubTab === 'pending' ? 'bg-amber-400 text-black' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Pending ({guestExpData.pending?.length || 0})
+              </button>
+              <button
+                onClick={() => setExpSubTab('approved')}
+                className={`px-4 py-2 rounded-xl font-bold uppercase ${
+                  expSubTab === 'approved' ? 'bg-emerald-500 text-black' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Approved ({guestExpData.approved?.length || 0})
+              </button>
+              <button
+                onClick={() => setExpSubTab('declined')}
+                className={`px-4 py-2 rounded-xl font-bold uppercase ${
+                  expSubTab === 'declined' ? 'bg-rose-500 text-white' : 'text-zinc-400 hover:text-white'
+                }`}
+              >
+                Declined ({guestExpData.declined?.length || 0})
+              </button>
             </div>
 
-            {/* Reviews List */}
             <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
-              {guestExpData[expSubTab]?.length === 0 ? (
+              {(guestExpData[expSubTab] || []).length === 0 ? (
                 <div className="text-center py-12 text-zinc-500 text-xs italic">
-                  No {expSubTab} reviews found.
+                  No guest experiences in this queue.
                 </div>
               ) : (
-                guestExpData[expSubTab]?.map((exp) => (
-                  <div
-                    key={exp.id}
-                    className="p-4 rounded-2xl bg-black/60 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-                  >
+                guestExpData[expSubTab].map((exp) => (
+                  <div key={exp.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm font-bold text-white">{exp.guest_name}</span>
-                        {exp.room_name && (
-                          <span className="text-xs font-mono text-zinc-400">({exp.room_name})</span>
-                        )}
-                        <div className="flex items-center space-x-0.5 ml-2">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star key={s} className={`w-3 h-3 ${s <= exp.rating ? 'text-amber-400 fill-amber-400' : 'text-zinc-700'}`} />
-                          ))}
-                        </div>
+                        <span className="font-bold text-white text-xs">{exp.guest_name}</span>
+                        <span className="text-amber-400 font-bold">★ {exp.rating}/5</span>
+                        <span className="text-[10px] text-zinc-500 font-mono">{exp.stay_date || exp.created_at}</span>
                       </div>
                       <p className="text-xs text-zinc-300 italic">"{exp.review_text}"</p>
-                      <span className="text-[10px] font-mono text-zinc-500 block">Submitted: {exp.created_at}</span>
                     </div>
 
                     <div className="flex items-center space-x-2 self-end md:self-auto">
-                      {expSubTab !== 'approved' && (
-                        <button
-                          onClick={() => handleReviewStatus(exp.id, 'APPROVED')}
-                          className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-xs font-bold uppercase flex items-center space-x-1"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Approve</span>
-                        </button>
+                      {expSubTab === 'pending' && (
+                        <>
+                          <button
+                            onClick={() => handleReviewStatus(exp.id, 'APPROVED')}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold uppercase"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReviewStatus(exp.id, 'DECLINED')}
+                            className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold uppercase"
+                          >
+                            Decline
+                          </button>
+                        </>
                       )}
-
-                      {expSubTab !== 'declined' && (
-                        <button
-                          onClick={() => handleReviewStatus(exp.id, 'DECLINED')}
-                          className="px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 text-xs font-bold uppercase flex items-center space-x-1"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                          <span>Decline</span>
-                        </button>
-                      )}
-
                       <button
                         onClick={() => handleReviewStatus(exp.id, 'DELETE')}
-                        className="p-1.5 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-400 text-xs"
-                        title="Delete review"
+                        className="p-1.5 rounded-xl bg-white/5 hover:bg-rose-500/20 text-zinc-400 hover:text-rose-300 text-xs"
+                        title="Delete"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -905,38 +2026,37 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
           </div>
         )}
 
-        {/* ================= TAB 6: STAFF ACCOUNTS ================= */}
+        {/* ----------------- TAB: STAFF ACCOUNTS MANAGEMENT ----------------- */}
         {activeTab === 'users' && (
           <div className="space-y-6">
             <div className="p-6 rounded-3xl liquid-glass border border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
               <div>
                 <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">Access Control</span>
-                <h2 className="text-2xl font-black text-white">Staff & Customer Support Accounts</h2>
+                <h2 className="text-2xl font-black text-white">Staff Accounts & Permissions</h2>
               </div>
               <button
                 onClick={() => setShowCreateUserModal(true)}
                 className="liquid-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center space-x-1.5 shadow-lg"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>Create Account</span>
+                <span>Create Staff Account</span>
               </button>
             </div>
 
             <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-3">
               {users.map((u) => (
-                <div
-                  key={u.id}
-                  className="p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between"
-                >
+                <div key={u.id} className="p-4 rounded-2xl bg-black/60 border border-white/10 flex items-center justify-between">
                   <div>
                     <div className="flex items-center space-x-2">
-                      <span className="text-sm font-bold text-white">{u.name}</span>
-                      <span className="text-xs font-mono text-zinc-400">({u.email})</span>
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-white/10 text-zinc-200">
+                      <span className="font-bold text-white text-xs">{u.name}</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-white/10 text-zinc-300 border border-white/10">
                         {u.role}
                       </span>
+                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${u.status === 'ACTIVE' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                        {u.status}
+                      </span>
                     </div>
-                    <span className="text-[10px] font-mono text-zinc-500">Status: {u.status}</span>
+                    <span className="text-xs text-zinc-400 block font-mono mt-0.5">{u.email}</span>
                   </div>
                 </div>
               ))}
@@ -944,82 +2064,52 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
           </div>
         )}
 
-        {/* ================= TAB 7: SETTINGS & AUDIT LOG (Section 61, 62) ================= */}
+        {/* ----------------- TAB: SETTINGS & AUDIT LOG ----------------- */}
         {activeTab === 'settings' && (
           <div className="space-y-6">
-            {/* Settings Form */}
-            <div className="p-6 rounded-3xl liquid-glass border border-white/15 shadow-xl space-y-4">
-              <h2 className="text-2xl font-black text-white">System Settings & Configuration</h2>
+            <div className="p-6 rounded-3xl liquid-glass border border-white/15 shadow-xl">
+              <span className="text-[10px] text-zinc-400 uppercase font-mono tracking-widest block">System Configuration</span>
+              <h2 className="text-2xl font-black text-white">System Settings & Audit Logs</h2>
+            </div>
 
+            <div className="p-6 rounded-3xl bg-black/50 border border-white/10 space-y-4">
+              <h3 className="text-base font-bold text-white font-mono uppercase">System Settings</h3>
               {saveSettingsSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs">
+                <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs">
                   Settings saved successfully!
                 </div>
               )}
-
-              <form onSubmit={handleSaveSettings} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <form onSubmit={handleSaveSettings} className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div>
-                  <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">
-                    Refundable Security Deposit Amount (₱)
-                  </label>
+                  <label className="text-zinc-400 font-mono block mb-1">Security Deposit Amount (₱)</label>
                   <input
                     type="number"
-                    value={systemSettings.security_deposit_amount || 1000}
+                    value={systemSettings.security_deposit_amount || '1000'}
                     onChange={(e) => setSystemSettings({ ...systemSettings, security_deposit_amount: e.target.value })}
-                    className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs font-mono focus:outline-none"
+                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
                   />
                 </div>
 
                 <div>
-                  <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">
-                    Meta / Messenger Destination URL
-                  </label>
+                  <label className="text-zinc-400 font-mono block mb-1">Facebook Messenger URL</label>
                   <input
                     type="text"
                     value={systemSettings.meta_messenger_url || ''}
                     onChange={(e) => setSystemSettings({ ...systemSettings, meta_messenger_url: e.target.value })}
-                    className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none"
+                    className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
                   />
                 </div>
 
-                <div>
-                  <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">
-                    Antipolo Google Maps Link
-                  </label>
-                  <input
-                    type="text"
-                    value={systemSettings.google_maps_antipolo || ''}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, google_maps_antipolo: e.target.value })}
-                    className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-xs font-mono uppercase text-zinc-400 block mb-1">
-                    Cainta Google Maps Link
-                  </label>
-                  <input
-                    type="text"
-                    value={systemSettings.google_maps_cainta || ''}
-                    onChange={(e) => setSystemSettings({ ...systemSettings, google_maps_cainta: e.target.value })}
-                    className="w-full h-11 px-3.5 rounded-xl bg-black/60 border border-white/15 text-white text-xs focus:outline-none"
-                  />
-                </div>
-
-                <div className="sm:col-span-2 pt-2 flex justify-end">
-                  <button
-                    type="submit"
-                    className="liquid-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider"
-                  >
-                    Save System Settings
+                <div className="sm:col-span-2 flex justify-end">
+                  <button type="submit" className="liquid-btn-primary px-6 py-2.5 rounded-xl font-bold uppercase text-xs">
+                    Save Settings
                   </button>
                 </div>
               </form>
             </div>
 
-            {/* Audit Log Table (Section 61) */}
             <div className="p-6 rounded-3xl bg-black/50 border border-white/10 space-y-4">
-              <h3 className="text-lg font-bold text-white uppercase font-mono">Administrative Audit Log</h3>
+              <h3 className="text-base font-bold text-white font-mono uppercase">Audit Log (Recent 100 Entries)</h3>
               <div className="space-y-2 max-h-72 overflow-y-auto no-scrollbar">
                 {auditLogs.map((log) => (
                   <div key={log.id} className="p-3 rounded-xl bg-black/60 border border-white/5 text-xs flex justify-between items-center">
@@ -1034,9 +2124,79 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
             </div>
           </div>
         )}
+
       </div>
 
-      {/* ================= ROOM MODAL (Add / Edit Suite with Photos & Payment Methods) ================= */}
+      {/* ================= MODAL 1: BOOKING DETAIL SNAPSHOT ================= */}
+      {selectedBookingForModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
+          <div className="relative w-full max-w-xl liquid-glass border border-white/20 rounded-3xl overflow-hidden shadow-2xl p-6 sm:p-8 animate-modal-pop my-6 space-y-5 max-h-[90vh] flex flex-col">
+            <button
+              onClick={() => setSelectedBookingForModal(null)}
+              className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/5 hover:bg-white text-white hover:text-black border border-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="pb-3 border-b border-white/10">
+              <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block">Booking Snapshot</span>
+              <h3 className="text-xl font-black text-white">{selectedBookingForModal.reference_number}</h3>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 no-scrollbar text-xs">
+              <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Guest Name</span>
+                  <span className="font-bold text-white">{selectedBookingForModal.guest_name}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Suite & Location</span>
+                  <span className="font-bold text-white">{selectedBookingForModal.room_name} ({selectedBookingForModal.location})</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-in</span>
+                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_in}</span>
+                </div>
+                <div>
+                  <span className="text-zinc-400 font-mono block text-[10px] uppercase">Check-out</span>
+                  <span className="font-bold text-white font-mono">{selectedBookingForModal.check_out}</span>
+                </div>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                <span className="font-bold uppercase tracking-wider text-zinc-300 font-mono block">Financial Preservation Breakdown</span>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Room Rate:</span>
+                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.room_subtotal || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-zinc-400">
+                  <span>Inclusions Subtotal:</span>
+                  <span className="text-white font-mono">₱{Number(selectedBookingForModal.inclusions_subtotal || 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-emerald-400">
+                  <span>Security Deposit:</span>
+                  <span className="font-mono font-bold">₱1,000 ({selectedBookingForModal.deposit_status || 'PENDING'})</span>
+                </div>
+                <div className="pt-2 border-t border-white/10 flex justify-between font-bold text-sm text-white">
+                  <span>Total Booking Amount:</span>
+                  <span className="font-mono">₱{Number(selectedBookingForModal.total_amount || selectedBookingForModal.amount || 0).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setSelectedBookingForModal(null)}
+                className="px-5 py-2.5 rounded-xl text-xs font-bold bg-white text-black hover:bg-zinc-200 uppercase tracking-wider"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL 2: ADD / EDIT SUITE (Device Photo Uploader) ================= */}
       {showRoomModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in overflow-y-auto">
           <div className="relative w-full max-w-2xl liquid-glass border border-white/20 rounded-3xl p-6 sm:p-8 space-y-4 max-h-[90vh] flex flex-col">
@@ -1106,7 +2266,6 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 />
               </div>
 
-              {/* Featured & Status */}
               <div className="grid grid-cols-2 gap-3 items-center">
                 <label className="flex items-center space-x-2 p-3 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-colors">
                   <input
@@ -1132,7 +2291,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 </div>
               </div>
 
-              {/* Photo Manager (Device Only - No URL Link Needed) */}
+              {/* Photo Manager (Device Only) */}
               <div className="space-y-3 pt-2 border-t border-white/10">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1144,7 +2303,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                   {roomFormImages.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => roomFileInputRef.current?.click()}
                       className="px-3 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -1154,7 +2313,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 </div>
 
                 <input
-                  ref={fileInputRef}
+                  ref={roomFileInputRef}
                   type="file"
                   accept="image/png, image/jpeg, image/jpg, image/webp"
                   multiple
@@ -1162,10 +2321,9 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                   className="hidden"
                 />
 
-                {/* Upload Dropzone */}
                 {roomFormImages.length === 0 ? (
                   <label
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => roomFileInputRef.current?.click()}
                     className="border-2 border-dashed border-white/20 hover:border-amber-400/60 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-black/40 hover:bg-white/5 transition-all group"
                   >
                     <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
@@ -1175,42 +2333,35 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                     <span className="text-[10px] text-zinc-400 mt-1">Supports JPG, PNG, WEBP &bull; You can select multiple files</span>
                   </label>
                 ) : (
-                  <div className="space-y-2">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                      {roomFormImages.map((img, idx) => (
-                        <div key={idx} className="relative group rounded-2xl overflow-hidden h-24 border border-white/20 bg-black/60 shadow-lg">
-                          <img src={img} alt={`Suite photo ${idx + 1}`} className="w-full h-full object-cover" />
-                          
-                          {/* Cover badge on first image */}
-                          {idx === 0 ? (
-                            <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black shadow-md">
-                              Cover Photo
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const reordered = [img, ...roomFormImages.filter((_, i) => i !== idx)];
-                                setRoomFormImages(reordered);
-                              }}
-                              className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/75 text-zinc-300 opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-black transition-all"
-                            >
-                              Make Cover
-                            </button>
-                          )}
-
-                          {/* Delete Photo */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+                    {roomFormImages.map((img, idx) => (
+                      <div key={idx} className="relative group rounded-2xl overflow-hidden h-24 border border-white/20 bg-black/60 shadow-lg">
+                        <img src={img} alt={`Suite photo ${idx + 1}`} className="w-full h-full object-cover" />
+                        {idx === 0 ? (
+                          <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black shadow-md">
+                            Cover Photo
+                          </span>
+                        ) : (
                           <button
                             type="button"
-                            onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
-                            className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-rose-500 rounded-lg text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all shadow-md"
-                            title="Delete Photo"
+                            onClick={() => {
+                              const reordered = [img, ...roomFormImages.filter((_, i) => i !== idx)];
+                              setRoomFormImages(reordered);
+                            }}
+                            className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/75 text-zinc-300 opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-black transition-all"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            Make Cover
                           </button>
-                        </div>
-                      ))}
-                    </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
+                          className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-rose-500 rounded-lg text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -1244,7 +2395,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
         </div>
       )}
 
-      {/* ================= INCLUSION MODAL ================= */}
+      {/* ================= MODAL 3: INCLUSION MODAL ================= */}
       {showInclusionModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
           <div className="relative w-full max-w-md liquid-glass border border-white/20 rounded-3xl p-6 space-y-4">
@@ -1293,7 +2444,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
         </div>
       )}
 
-      {/* ================= POLICY MODAL ================= */}
+      {/* ================= MODAL 4: POLICY MODAL ================= */}
       {showPolicyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
           <div className="relative w-full max-w-md liquid-glass border border-white/20 rounded-3xl p-6 space-y-4">
@@ -1317,7 +2468,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
               <div>
                 <label className="text-zinc-400 font-mono block mb-1">Policy Content *</label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   required
                   value={polContent}
                   onChange={(e) => setPolContent(e.target.value)}
@@ -1333,14 +2484,14 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
         </div>
       )}
 
-      {/* ================= CREATE USER MODAL ================= */}
+      {/* ================= MODAL 5: CREATE USER MODAL ================= */}
       {showCreateUserModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-fade-in">
           <div className="relative w-full max-w-md liquid-glass border border-white/20 rounded-3xl p-6 space-y-4">
             <button onClick={() => setShowCreateUserModal(false)} className="absolute top-4 right-4 p-2 rounded-full bg-white/5 text-white">
               <X className="w-5 h-5" />
             </button>
-            <h3 className="text-lg font-black text-white">Create Staff / Support Account</h3>
+            <h3 className="text-lg font-black text-white">Create Staff Account</h3>
             <form onSubmit={handleCreateUser} className="space-y-3 text-xs">
               <div>
                 <label className="text-zinc-400 font-mono block mb-1">Full Name *</label>
@@ -1363,13 +2514,13 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
                 />
               </div>
               <div>
-                <label className="text-zinc-400 font-mono block mb-1">Password *</label>
+                <label className="text-zinc-400 font-mono block mb-1">Temporary Password *</label>
                 <input
                   type="password"
                   required
                   value={newUserPassword}
                   onChange={(e) => setNewUserPassword(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white"
+                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono"
                 />
               </div>
               <div>
@@ -1385,7 +2536,7 @@ export default function OwnerDashboard({ token, activeTab: externalActiveTab, se
               </div>
               <div className="pt-2 flex justify-end space-x-2">
                 <button type="button" onClick={() => setShowCreateUserModal(false)} className="px-4 py-2 rounded-xl bg-white/10 text-white">Cancel</button>
-                <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Create</button>
+                <button type="submit" className="liquid-btn-primary px-5 py-2 rounded-xl font-bold uppercase">Create Account</button>
               </div>
             </form>
           </div>

@@ -30,17 +30,6 @@ export default function StaffNavbar({ currentUser, onLogout }) {
 
         {/* Navigation Actions */}
         <div className="flex items-center space-x-2">
-          
-          {/* Owner Portal Link - ONLY visible to OWNER role */}
-          {currentUser?.role === 'OWNER' && (
-            <Link
-              to="/owner"
-              className="h-10 px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 transition-all flex items-center justify-center space-x-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
-              <span>Owner Portal</span>
-            </Link>
-          )}
 
           <Link
             to="/"

@@ -30,13 +30,6 @@ export default function OwnerNavbar({ currentUser, onLogout }) {
 
         {/* Navigation Links */}
         <div className="flex items-center space-x-2">
-          
-          <Link
-            to="/staff"
-            className="h-10 px-4 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap text-zinc-400 hover:text-white hover:bg-white/5 transition-all flex items-center justify-center space-x-1.5"
-          >
-            <span>Staff Portal</span>
-          </Link>
 
           <Link
             to="/"
