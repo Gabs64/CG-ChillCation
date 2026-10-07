@@ -116,6 +116,9 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
   const [roomSaveError, setRoomSaveError] = useState('');
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+  const [editingPriceRoomId, setEditingPriceRoomId] = useState(null);
+  const [quickPriceValue, setQuickPriceValue] = useState('');
+  const [isSavingQuickPrice, setIsSavingQuickPrice] = useState(false);
   const [roomModalTab, setRoomModalTab] = useState('inclusions'); // 'inclusions' | 'basic' | 'specs' | 'rules' | 'photos'
   const [roomFormName, setRoomFormName] = useState('');
   const [roomFormLocation, setRoomFormLocation] = useState('Antipolo');
@@ -914,6 +917,46 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
       console.error('Error toggling featured status:', err);
       // Rollback
       setRooms(prev => prev.map(r => r.id === room.id ? { ...r, is_featured: !newFeatured } : r));
+    }
+  };
+
+  // Quick Room Price Change Handlers (Inline on Suite Card)
+  const handleStartQuickPriceEdit = (room) => {
+    setEditingPriceRoomId(room.id);
+    setQuickPriceValue(String(room.price_per_night || 2800));
+  };
+
+  const handleCancelQuickPrice = () => {
+    setEditingPriceRoomId(null);
+    setQuickPriceValue('');
+  };
+
+  const handleSaveQuickPrice = async (roomId) => {
+    const val = Number(quickPriceValue);
+    if (!val || val < 500) {
+      alert('Please enter a valid nightly rate of at least ₱500.');
+      return;
+    }
+    setIsSavingQuickPrice(true);
+    try {
+      const res = await fetch(`/api/owner/rooms/${roomId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ pricePerNight: val })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.success) {
+        alert(data.error || 'Failed to update suite rate.');
+      } else {
+        setRooms(prev => prev.map(r => r.id === roomId ? { ...r, price_per_night: val } : r));
+        setEditingPriceRoomId(null);
+        fetchAuditLogs();
+      }
+    } catch (err) {
+      console.error('Error updating room price:', err);
+      alert('Failed to update suite rate.');
+    } finally {
+      setIsSavingQuickPrice(false);
     }
   };
 
@@ -3272,11 +3315,60 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                         </button>
                       </div>
 
-                      <div className="flex items-center space-x-2 text-xs text-zinc-400 mb-2">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span>{room.location}</span>
-                        <span>&bull;</span>
-                        <span className="font-mono text-white font-bold">₱{Number(room.price_per_night).toLocaleString()}/night</span>
+                      <div className="flex items-center justify-between text-xs text-zinc-400 mb-2 gap-2">
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          <MapPin className="w-3.5 h-3.5 text-zinc-400" />
+                          <span>{room.location}</span>
+                        </div>
+
+                        {editingPriceRoomId === room.id ? (
+                          <div className="flex items-center space-x-1 shrink-0 bg-black/90 p-1 rounded-xl border border-amber-400/60 shadow-lg">
+                            <span className="text-[11px] font-mono text-amber-300 pl-1">₱</span>
+                            <input
+                              type="number"
+                              min="500"
+                              step="50"
+                              value={quickPriceValue}
+                              onChange={(e) => setQuickPriceValue(e.target.value)}
+                              className="w-20 h-6 px-1 rounded-lg bg-black text-white font-mono text-xs font-bold focus:outline-none border border-white/20"
+                              autoFocus
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleSaveQuickPrice(room.id);
+                                if (e.key === 'Escape') handleCancelQuickPrice();
+                              }}
+                            />
+                            <button
+                              type="button"
+                              disabled={isSavingQuickPrice}
+                              onClick={() => handleSaveQuickPrice(room.id)}
+                              className="p-1 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-black font-bold disabled:opacity-50"
+                              title="Save Rate"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleCancelQuickPrice}
+                              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 text-zinc-300"
+                              title="Cancel"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleStartQuickPriceEdit(room)}
+                            className="group/rate px-2 py-0.5 rounded-lg bg-white/5 hover:bg-amber-400/20 hover:border-amber-400/40 border border-transparent flex items-center space-x-1.5 transition-all text-left"
+                            title="Click to quickly change rate"
+                          >
+                            <span className="font-mono text-white font-bold text-xs group-hover/rate:text-amber-300">
+                              ₱{Number(room.price_per_night).toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-zinc-400 font-mono">/night</span>
+                            <Edit2 className="w-3 h-3 text-zinc-500 group-hover/rate:text-amber-400 opacity-60 group-hover/rate:opacity-100" />
+                          </button>
+                        )}
                       </div>
                       <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed mb-3">{room.description}</p>
                     </div>
@@ -4145,21 +4237,89 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-zinc-400 font-mono block mb-1">Price Per Night (₱) *</label>
-                    <input
-                      type="number"
-                      required
-                      min="500"
-                      step="50"
-                      placeholder="2800"
-                      value={roomFormPrice}
-                      onChange={(e) => setRoomFormPrice(e.target.value)}
-                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono focus:border-amber-400/60 focus:outline-none"
-                    />
+                {/* Enhanced Nightly Rate Configuration Section */}
+                <div className="p-4 rounded-2xl bg-black/60 border border-white/15 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <label className="text-zinc-200 font-bold block font-mono text-xs">
+                        Nightly Sanctuary Rate (₱) *
+                      </label>
+                      <span className="text-[10px] text-zinc-400">Set standard price per night for this suite</span>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-lg font-black text-amber-300 font-mono">
+                        ₱{Number(roomFormPrice || 0).toLocaleString()}
+                      </span>
+                      <span className="text-[10px] text-zinc-400 font-mono"> / night</span>
+                    </div>
                   </div>
 
+                  <div className="flex items-center space-x-2">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono font-bold text-amber-400 text-sm">₱</span>
+                      <input
+                        type="number"
+                        required
+                        min="500"
+                        step="50"
+                        placeholder="2800"
+                        value={roomFormPrice}
+                        onChange={(e) => setRoomFormPrice(e.target.value)}
+                        className="w-full h-10 pl-8 pr-3 rounded-xl bg-black/80 border border-white/20 text-white font-mono font-bold text-sm focus:border-amber-400/60 focus:outline-none"
+                      />
+                    </div>
+
+                    {/* Quick Step Buttons */}
+                    <div className="flex items-center space-x-1">
+                      <button
+                        type="button"
+                        onClick={() => setRoomFormPrice(prev => Math.max(500, Number(prev || 2800) - 100))}
+                        className="h-10 px-2.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 font-mono text-xs transition-colors"
+                        title="Subtract ₱100"
+                      >
+                        -100
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRoomFormPrice(prev => Number(prev || 2800) + 100)}
+                        className="h-10 px-2.5 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-zinc-300 font-mono text-xs transition-colors"
+                        title="Add ₱100"
+                      >
+                        +100
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRoomFormPrice(prev => Number(prev || 2800) + 500)}
+                        className="h-10 px-2.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 text-amber-300 font-mono text-xs transition-colors"
+                        title="Add ₱500"
+                      >
+                        +500
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Quick Preset Rate Chips */}
+                  <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                    <span className="text-[10px] text-zinc-500 font-mono mr-1">Presets:</span>
+                    {[2200, 2500, 2800, 3200, 3500, 4000, 4500, 5000].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => setRoomFormPrice(preset)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-mono font-bold transition-all ${
+                          Number(roomFormPrice) === preset
+                            ? 'bg-amber-400 text-black shadow-md shadow-amber-400/20'
+                            : 'bg-white/5 hover:bg-white/15 text-zinc-400 hover:text-white border border-white/10'
+                        }`}
+                      >
+                        ₱{preset.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="text-zinc-400 font-mono block mb-1">Suite Status</label>
                     <select
