@@ -5,7 +5,7 @@ import {
   Layers, Settings, Sliders, Image, QrCode, RefreshCw, Building2, Upload, Camera,
   Clock, Calendar, Search, Filter, ChevronLeft, ChevronRight, LogIn, LogOut, Video, VideoOff,
   SwitchCamera, ExternalLink, RotateCcw, ArrowRight, Bed, Grid, Tag, Globe, Phone, Mail,
-  UserCheck, UserX, Key, Shield
+  UserCheck, UserX, Key, Shield, Tv, Wind, Bath, Coffee, BedDouble, Maximize2, Sparkles, MessageCircle
 } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 import CustomModal, { ConfirmModal } from '../shared/CustomModal';
@@ -116,12 +116,58 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
   const [roomSaveError, setRoomSaveError] = useState('');
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [editingRoom, setEditingRoom] = useState(null);
+  const [roomModalTab, setRoomModalTab] = useState('inclusions'); // 'inclusions' | 'basic' | 'specs' | 'rules' | 'photos'
   const [roomFormName, setRoomFormName] = useState('');
   const [roomFormLocation, setRoomFormLocation] = useState('Antipolo');
   const [roomFormPrice, setRoomFormPrice] = useState(2800);
   const [roomFormDescription, setRoomFormDescription] = useState('');
   const [roomFormFeatured, setRoomFormFeatured] = useState(false);
   const [roomFormStatus, setRoomFormStatus] = useState('AVAILABLE');
+  const [roomFormCapacity, setRoomFormCapacity] = useState('2 - 4 Guests');
+  const [roomFormBedSetup, setRoomFormBedSetup] = useState('King Luxury Bed');
+  const [roomFormSuiteSize, setRoomFormSuiteSize] = useState('35 sqm Studio');
+  const [roomFormCheckInTime, setRoomFormCheckInTime] = useState('2:00 PM onwards');
+  const [roomFormCheckOutTime, setRoomFormCheckOutTime] = useState('12:00 PM');
+  const [roomFormSecurityDeposit, setRoomFormSecurityDeposit] = useState(1000);
+  const [roomFormGoogleMapsUrl, setRoomFormGoogleMapsUrl] = useState('');
+  const [roomFormLocationDescription, setRoomFormLocationDescription] = useState('');
+  const [roomFormHighlights, setRoomFormHighlights] = useState([
+    'Instant QR Pass Check-in',
+    'Self Keyless Digital Lock',
+    'Cleaned & Sanitized Daily'
+  ]);
+  const [roomFormAmenities, setRoomFormAmenities] = useState({
+    entertainment: [
+      '55-inch 4K Smart TV with Netflix & YouTube',
+      'Smart Ambient Mood Lighting System',
+      'High-Speed 100+ Mbps Fiber Wi-Fi',
+      'Curated Board & Card Games'
+    ],
+    bedroom: [
+      'King Size Luxury Orthopedic Mattress',
+      '100% Egyptian Cotton Luxury Bed Linens',
+      'Full Blackout Privacy Curtains',
+      'Whisper-Quiet Inverter Air Conditioning'
+    ],
+    bathroom: [
+      'Instant Hot & Cold Rain Shower',
+      'Modern Ceramic Bidet Spray',
+      'Fresh Hotel-Grade Plush Towels',
+      'Hairdryer & Complimentary Toiletries'
+    ],
+    kitchenette: [
+      'Mini Refrigerator & Beverage Chiller',
+      'Microwave Oven & Electric Kettle',
+      'Complete Plates, Cutlery & Wine Glasses',
+      'Dining Counter with Designer Stools'
+    ]
+  });
+  const [roomFormHouseRules, setRoomFormHouseRules] = useState([
+    { title: '🚭 No Smoking Inside', desc: 'Smoking and vaping are strictly prohibited inside the suite to keep fresh air quality.' },
+    { title: '🔇 Quiet Hours', desc: '10:00 PM – 8:00 AM to maintain a relaxing atmosphere for all guests.' },
+    { title: '🎫 Instant QR Check-in', desc: 'Present your digital booking voucher pass upon arrival for immediate contactless verification.' },
+    { title: '💵 Security Deposit', desc: '₱1,000 incidental security deposit required upon check-in, 100% refundable upon room clearance.' }
+  ]);
   const [roomFormImages, setRoomFormImages] = useState([]);
   const [roomFormPaymentMethods, setRoomFormPaymentMethods] = useState(['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
   const roomFileInputRef = useRef(null);
@@ -682,7 +728,11 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
       if (!res.ok) {
         // Red error state: Keep camera running, display error alert and audible cue
         playScanErrorSound();
-        setQrScanError(data.error || 'No matching booking found for this QR code. Please try scanning another voucher.');
+        const rawErr = data?.error || '';
+        const cleanError = (rawErr && !rawErr.includes('http') && !rawErr.includes('://') && !rawErr.includes('.app') && !rawErr.includes('.com'))
+          ? rawErr
+          : 'No booking found for this QR code. Please try scanning another voucher.';
+        setQrScanError(cleanError);
         setScannedBooking(null);
       } else {
         // Verified Success: stop camera, play cool crystal chime and proceed to details view
@@ -867,31 +917,211 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
     }
   };
 
+  const STANDARD_AMENITIES_CONFIG = [
+    {
+      key: 'entertainment',
+      title: 'Entertainment & Atmosphere',
+      icon: Tv,
+      placeholder: 'e.g. 55-inch 4K Smart TV with Netflix & YouTube',
+      defaults: [
+        '55-inch 4K Smart TV with Netflix & YouTube',
+        'Smart Ambient Mood Lighting System',
+        'High-Speed 100+ Mbps Fiber Wi-Fi',
+        'Curated Board & Card Games'
+      ]
+    },
+    {
+      key: 'bedroom',
+      title: 'Master Bedroom Comfort',
+      icon: Wind,
+      placeholder: 'e.g. King Size Luxury Orthopedic Mattress',
+      defaults: [
+        'King Size Luxury Orthopedic Mattress',
+        '100% Egyptian Cotton Luxury Bed Linens',
+        'Full Blackout Privacy Curtains',
+        'Whisper-Quiet Inverter Air Conditioning'
+      ]
+    },
+    {
+      key: 'bathroom',
+      title: 'Private Spa Ensuite',
+      icon: Bath,
+      placeholder: 'e.g. Instant Hot & Cold Rain Shower',
+      defaults: [
+        'Instant Hot & Cold Rain Shower',
+        'Modern Ceramic Bidet Spray',
+        'Fresh Hotel-Grade Plush Towels',
+        'Hairdryer & Complimentary Toiletries'
+      ]
+    },
+    {
+      key: 'kitchenette',
+      title: 'Kitchenette & Dining',
+      icon: Coffee,
+      placeholder: 'e.g. Mini Refrigerator & Beverage Chiller',
+      defaults: [
+        'Mini Refrigerator & Beverage Chiller',
+        'Microwave Oven & Electric Kettle',
+        'Complete Plates, Cutlery & Wine Glasses',
+        'Dining Counter with Designer Stools'
+      ]
+    }
+  ];
+
+  const STANDARD_HIGHLIGHTS_DEFAULT = [
+    'Instant QR Pass Check-in',
+    'Self Keyless Digital Lock',
+    'Cleaned & Sanitized Daily'
+  ];
+
+  const STANDARD_RULES_DEFAULT = [
+    { title: '🚭 No Smoking Inside', desc: 'Smoking and vaping are strictly prohibited inside the suite to keep fresh air quality.' },
+    { title: '🔇 Quiet Hours', desc: '10:00 PM – 8:00 AM to maintain a relaxing atmosphere for all guests.' },
+    { title: '🎫 Instant QR Check-in', desc: 'Present your digital booking voucher pass upon arrival for immediate contactless verification.' },
+    { title: '💵 Security Deposit', desc: '₱1,000 incidental security deposit required upon check-in, 100% refundable upon room clearance.' }
+  ];
+
   const handleOpenRoomModal = (room = null) => {
     setRoomSaveError('');
     setIsSavingRoom(false);
+    setRoomModalTab('inclusions'); // Default to Inclusions tab
     if (room) {
       setEditingRoom(room);
-      setRoomFormName(room.room_name);
-      setRoomFormLocation(room.location);
-      setRoomFormPrice(room.price_per_night);
-      setRoomFormDescription(room.description);
+      setRoomFormName(room.room_name || '');
+      setRoomFormLocation(room.location || 'Antipolo');
+      setRoomFormPrice(room.price_per_night || 2800);
+      setRoomFormDescription(room.description || '');
       setRoomFormFeatured(Boolean(room.is_featured));
       setRoomFormStatus(room.status || 'AVAILABLE');
+      setRoomFormCapacity(room.capacity || '2 - 4 Guests');
+      setRoomFormBedSetup(room.bed_setup || 'King Luxury Bed');
+      setRoomFormSuiteSize(room.suite_size || '35 sqm Studio');
+      setRoomFormCheckInTime(room.check_in_time || '2:00 PM onwards');
+      setRoomFormCheckOutTime(room.check_out_time || '12:00 PM');
+      setRoomFormSecurityDeposit(room.security_deposit !== undefined ? room.security_deposit : 1000);
+      setRoomFormGoogleMapsUrl(room.google_maps_url || '');
+      setRoomFormLocationDescription(room.location_description || '');
+      setRoomFormHighlights(
+        room.highlights && room.highlights.length > 0
+          ? [...room.highlights]
+          : [...STANDARD_HIGHLIGHTS_DEFAULT]
+      );
+      setRoomFormAmenities(
+        room.amenities
+          ? {
+              entertainment: room.amenities.entertainment ? [...room.amenities.entertainment] : [...STANDARD_AMENITIES_CONFIG[0].defaults],
+              bedroom: room.amenities.bedroom ? [...room.amenities.bedroom] : [...STANDARD_AMENITIES_CONFIG[1].defaults],
+              bathroom: room.amenities.bathroom ? [...room.amenities.bathroom] : [...STANDARD_AMENITIES_CONFIG[2].defaults],
+              kitchenette: room.amenities.kitchenette ? [...room.amenities.kitchenette] : [...STANDARD_AMENITIES_CONFIG[3].defaults]
+            }
+          : {
+              entertainment: [...STANDARD_AMENITIES_CONFIG[0].defaults],
+              bedroom: [...STANDARD_AMENITIES_CONFIG[1].defaults],
+              bathroom: [...STANDARD_AMENITIES_CONFIG[2].defaults],
+              kitchenette: [...STANDARD_AMENITIES_CONFIG[3].defaults]
+            }
+      );
+      setRoomFormHouseRules(
+        room.house_rules && room.house_rules.length > 0
+          ? [...room.house_rules]
+          : [...STANDARD_RULES_DEFAULT]
+      );
       setRoomFormImages(room.images ? [...room.images] : []);
       setRoomFormPaymentMethods(room.payment_methods ? [...room.payment_methods] : ['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
     } else {
       setEditingRoom(null);
-      setRoomFormName(`Room ${rooms.length + 1 < 10 ? `0${rooms.length + 1}` : rooms.length + 1}`);
+      setRoomFormName(`Suite ${rooms.length + 1 < 10 ? `0${rooms.length + 1}` : rooms.length + 1}`);
       setRoomFormLocation('Antipolo');
       setRoomFormPrice(2800);
-      setRoomFormDescription('Luxury 35sqm minimalist suite.');
+      setRoomFormDescription('Luxury minimalist suite located in Antipolo with scenic ridge views, ambient lighting, and curated premium comforts.');
       setRoomFormFeatured(false);
       setRoomFormStatus('AVAILABLE');
+      setRoomFormCapacity('2 - 4 Guests');
+      setRoomFormBedSetup('King Luxury Bed');
+      setRoomFormSuiteSize('35 sqm Studio');
+      setRoomFormCheckInTime('2:00 PM onwards');
+      setRoomFormCheckOutTime('12:00 PM');
+      setRoomFormSecurityDeposit(1000);
+      setRoomFormGoogleMapsUrl('');
+      setRoomFormLocationDescription('Located along the breezy scenic ridge of Antipolo, close to iconic overlook cafés, Cloud 9, Pinto Art Museum, and hilltop dining.');
+      setRoomFormHighlights([...STANDARD_HIGHLIGHTS_DEFAULT]);
+      setRoomFormAmenities({
+        entertainment: [...STANDARD_AMENITIES_CONFIG[0].defaults],
+        bedroom: [...STANDARD_AMENITIES_CONFIG[1].defaults],
+        bathroom: [...STANDARD_AMENITIES_CONFIG[2].defaults],
+        kitchenette: [...STANDARD_AMENITIES_CONFIG[3].defaults]
+      });
+      setRoomFormHouseRules([...STANDARD_RULES_DEFAULT]);
       setRoomFormImages([]);
       setRoomFormPaymentMethods(['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer']);
     }
     setShowRoomModal(true);
+  };
+
+  // Category Amenity Manipulation Handlers
+  const handleAddAmenityItem = (categoryKey) => {
+    setRoomFormAmenities(prev => ({
+      ...prev,
+      [categoryKey]: [...(prev[categoryKey] || []), '']
+    }));
+  };
+
+  const handleUpdateAmenityItem = (categoryKey, index, value) => {
+    setRoomFormAmenities(prev => {
+      const list = [...(prev[categoryKey] || [])];
+      list[index] = value;
+      return { ...prev, [categoryKey]: list };
+    });
+  };
+
+  const handleRemoveAmenityItem = (categoryKey, index) => {
+    setRoomFormAmenities(prev => ({
+      ...prev,
+      [categoryKey]: (prev[categoryKey] || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleResetAmenityCategory = (categoryKey) => {
+    const config = STANDARD_AMENITIES_CONFIG.find(c => c.key === categoryKey);
+    if (!config) return;
+    setRoomFormAmenities(prev => ({
+      ...prev,
+      [categoryKey]: [...config.defaults]
+    }));
+  };
+
+  // Highlights Manipulation Handlers
+  const handleAddHighlight = () => {
+    setRoomFormHighlights(prev => [...prev, '']);
+  };
+
+  const handleUpdateHighlight = (index, value) => {
+    setRoomFormHighlights(prev => {
+      const list = [...prev];
+      list[index] = value;
+      return list;
+    });
+  };
+
+  const handleRemoveHighlight = (index) => {
+    setRoomFormHighlights(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // House Rules Manipulation Handlers
+  const handleAddHouseRule = () => {
+    setRoomFormHouseRules(prev => [...prev, { title: '', desc: '' }]);
+  };
+
+  const handleUpdateHouseRule = (index, field, value) => {
+    setRoomFormHouseRules(prev => {
+      const list = [...prev];
+      list[index] = { ...list[index], [field]: value };
+      return list;
+    });
+  };
+
+  const handleRemoveHouseRule = (index) => {
+    setRoomFormHouseRules(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleDevicePhotoUpload = (e) => {
@@ -955,6 +1185,17 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
       return;
     }
 
+    // Filter out blank amenity, highlight and rule items
+    const cleanedAmenities = {
+      entertainment: (roomFormAmenities.entertainment || []).filter(item => item && item.trim().length > 0),
+      bedroom: (roomFormAmenities.bedroom || []).filter(item => item && item.trim().length > 0),
+      bathroom: (roomFormAmenities.bathroom || []).filter(item => item && item.trim().length > 0),
+      kitchenette: (roomFormAmenities.kitchenette || []).filter(item => item && item.trim().length > 0)
+    };
+
+    const cleanedHighlights = (roomFormHighlights || []).filter(h => h && h.trim().length > 0);
+    const cleanedHouseRules = (roomFormHouseRules || []).filter(r => r && (r.title.trim().length > 0 || r.desc.trim().length > 0));
+
     const payload = {
       roomName: trimmedName,
       location: roomFormLocation,
@@ -962,6 +1203,17 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
       description: roomFormDescription,
       isFeatured: roomFormFeatured,
       status: roomFormStatus,
+      capacity: roomFormCapacity,
+      bedSetup: roomFormBedSetup,
+      suiteSize: roomFormSuiteSize,
+      checkInTime: roomFormCheckInTime,
+      checkOutTime: roomFormCheckOutTime,
+      securityDeposit: Number(roomFormSecurityDeposit),
+      googleMapsUrl: roomFormGoogleMapsUrl,
+      locationDescription: roomFormLocationDescription,
+      highlights: cleanedHighlights,
+      amenities: cleanedAmenities,
+      houseRules: cleanedHouseRules,
       images: roomFormImages,
       paymentMethods: roomFormPaymentMethods
     };
@@ -1438,7 +1690,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Arrivals on {selectedDate}</span>
+                  <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Expected Arrivals (All)</span>
                   <LogIn className="w-4 h-4 text-emerald-400" />
                 </div>
                 <span className="text-2xl font-black text-white font-mono">{dailyData.arrivals?.length || 0}</span>
@@ -1474,7 +1726,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
             {/* List for active subtab */}
             <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-4">
               <h3 className="text-base font-bold text-white font-mono uppercase">
-                {dailySubTab === 'arrivals' && `Expected Arrivals (${dailyData.arrivals?.length || 0})`}
+                {dailySubTab === 'arrivals' && `All Expected Arrivals (${dailyData.arrivals?.length || 0})`}
                 {dailySubTab === 'departures' && `Expected Departures (${dailyData.departures?.length || 0})`}
                 {dailySubTab === 'in_house' && `Currently In-House Guests (${dailyData.inHouse?.length || 0})`}
               </h3>
@@ -1487,7 +1739,7 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
                 <div className="space-y-3">
                   {(dailySubTab === 'arrivals' ? dailyData.arrivals : dailySubTab === 'departures' ? dailyData.departures : dailyData.inHouse)?.length === 0 ? (
                     <div className="text-center py-8 text-zinc-500 text-xs italic">
-                      No guests scheduled for this category.
+                      {dailySubTab === 'arrivals' ? 'No customer bookings found.' : 'No guests scheduled for this category.'}
                     </div>
                   ) : (
                     (dailySubTab === 'arrivals' ? dailyData.arrivals : dailySubTab === 'departures' ? dailyData.departures : dailyData.inHouse).map((item) => (
@@ -3653,14 +3905,14 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
         )}
       </CustomModal>
 
-      {/* ================= MODAL 2: ADD / EDIT SUITE (Device Photo Uploader) ================= */}
+      {/* ================= MODAL 2: ADD / EDIT SUITE (Device Photo Uploader & Full Inclusions Editor) ================= */}
       <CustomModal
         isOpen={showRoomModal}
         onClose={() => setShowRoomModal(false)}
-        title={editingRoom ? `Edit ${editingRoom.room_name}` : 'Add New Suite'}
-        subtitle="Suite Inventory Control"
+        title={editingRoom ? `Edit Suite: ${editingRoom.room_name}` : 'Add New Luxury Suite'}
+        subtitle="Suite Customization, 4-Category Inclusions & Inventory"
         icon={Bed}
-        size="2xl"
+        size="4xl"
       >
         <div className="space-y-4">
           {roomSaveError && (
@@ -3670,190 +3922,556 @@ export default function OwnerDashboard({ token, currentUser, activeTab: external
             </div>
           )}
 
-          <form onSubmit={handleSaveRoom} className="space-y-4 pr-1 text-xs">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Room Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Master Suite 01"
-                  value={roomFormName}
-                  onChange={(e) => setRoomFormName(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Location *</label>
-                <select
-                  value={roomFormLocation}
-                  onChange={(e) => setRoomFormLocation(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
-                >
-                  <option value="Antipolo">Antipolo</option>
-                  <option value="Cainta">Cainta</option>
-                </select>
-              </div>
-            </div>
+          {/* Modal Sub-Tabs */}
+          <div className="flex space-x-1.5 p-1 bg-black/60 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar">
+            <button
+              type="button"
+              onClick={() => setRoomModalTab('inclusions')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 whitespace-nowrap ${
+                roomModalTab === 'inclusions'
+                  ? 'bg-amber-400 text-black shadow-md'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>✨ Included Amenities (4 Categories)</span>
+            </button>
 
-            <div>
-              <label className="text-zinc-400 font-mono block mb-1">Price Per Night (₱) *</label>
-              <input
-                type="number"
-                required
-                min="500"
-                step="50"
-                placeholder="2800"
-                value={roomFormPrice}
-                onChange={(e) => setRoomFormPrice(e.target.value)}
-                className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono focus:border-amber-400/60 focus:outline-none"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setRoomModalTab('basic')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 whitespace-nowrap ${
+                roomModalTab === 'basic'
+                  ? 'bg-amber-400 text-black shadow-md'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Bed className="w-3.5 h-3.5" />
+              <span>🏨 Basic Info & Rate</span>
+            </button>
 
-            <div>
-              <label className="text-zinc-400 font-mono block mb-1">Description</label>
-              <textarea
-                rows={3}
-                placeholder="Describe the suite, view, amenities, and capacity..."
-                value={roomFormDescription}
-                onChange={(e) => setRoomFormDescription(e.target.value)}
-                className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setRoomModalTab('specs')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 whitespace-nowrap ${
+                roomModalTab === 'specs'
+                  ? 'bg-amber-400 text-black shadow-md'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>📐 Quick Specs & Location</span>
+            </button>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-              <button
-                type="button"
-                onClick={() => setRoomFormFeatured(!roomFormFeatured)}
-                className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
-                  roomFormFeatured
-                    ? 'bg-amber-400/20 border-amber-400/50 text-amber-300'
-                    : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
-                }`}
-              >
-                <div className="flex items-center space-x-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${roomFormFeatured ? 'bg-amber-400 animate-pulse' : 'bg-zinc-600'}`} />
-                  <span className="font-bold">Featured Suite</span>
-                </div>
-                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
-                  roomFormFeatured ? 'bg-amber-400 text-black' : 'bg-white/10 text-zinc-400'
-                }`}>
-                  {roomFormFeatured ? 'ENABLED' : 'DISABLED'}
-                </span>
-              </button>
+            <button
+              type="button"
+              onClick={() => setRoomModalTab('rules')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 whitespace-nowrap ${
+                roomModalTab === 'rules'
+                  ? 'bg-amber-400 text-black shadow-md'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>📜 Stay Policies ({roomFormHouseRules.length})</span>
+            </button>
 
-              <div>
-                <label className="text-zinc-400 font-mono block mb-1">Status</label>
-                <select
-                  value={roomFormStatus}
-                  onChange={(e) => setRoomFormStatus(e.target.value)}
-                  className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
-                >
-                  <option value="AVAILABLE">AVAILABLE</option>
-                  <option value="MAINTENANCE">MAINTENANCE</option>
-                  <option value="UNAVAILABLE">UNAVAILABLE</option>
-                </select>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setRoomModalTab('photos')}
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center space-x-2 whitespace-nowrap ${
+                roomModalTab === 'photos'
+                  ? 'bg-amber-400 text-black shadow-md'
+                  : 'text-zinc-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>📸 Device Photos ({roomFormImages.length})</span>
+            </button>
+          </div>
 
-            {/* Photo Manager (Device Only) */}
-            <div className="space-y-3 pt-2 border-t border-white/10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-zinc-200 font-bold block font-mono text-xs">
-                    Suite Photos from Device ({roomFormImages.length}) *
-                  </label>
-                  <span className="text-[10px] text-zinc-400">Upload photos directly from your phone or computer</span>
-                </div>
-                {roomFormImages.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => roomFileInputRef.current?.click()}
-                    className="px-3 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add More Photos</span>
-                  </button>
-                )}
-              </div>
-
-              <input
-                ref={roomFileInputRef}
-                type="file"
-                accept="image/png, image/jpeg, image/jpg, image/webp"
-                multiple
-                onChange={handleDevicePhotoUpload}
-                className="hidden"
-              />
-
-              {roomFormImages.length === 0 ? (
-                <label
-                  onClick={() => roomFileInputRef.current?.click()}
-                  className="border-2 border-dashed border-white/20 hover:border-amber-400/60 rounded-2xl p-6 flex flex-col items-center justify-center text-center cursor-pointer bg-black/40 hover:bg-white/5 transition-all group"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 mb-2 group-hover:scale-110 transition-transform">
-                    <Upload className="w-6 h-6" />
+          <form onSubmit={handleSaveRoom} className="space-y-4 text-xs">
+            {/* ================= TAB 1: INCLUDED AMENITIES & PERKS (4 CATEGORIES) ================= */}
+            {roomModalTab === 'inclusions' && (
+              <div className="space-y-5">
+                <div className="p-4 rounded-2xl bg-amber-400/10 border border-amber-400/20 text-amber-200 text-xs flex items-start space-x-2.5">
+                  <Sparkles className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block text-white">4-Category Complimentary Inclusions</span>
+                    <span className="text-zinc-300 text-[11px] leading-relaxed">
+                      Edit, add, or customize every inclusion item per category for this suite. These will appear highlighted in the "Included Amenities & Perks" section of the public suite screen.
+                    </span>
                   </div>
-                  <span className="font-bold text-white text-xs">Tap to Select Photos from Device</span>
-                  <span className="text-[10px] text-zinc-400 mt-1">Supports JPG, PNG, WEBP &bull; You can select multiple files</span>
-                </label>
-              ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
-                  {roomFormImages.map((img, idx) => (
-                    <div key={idx} className="relative group rounded-2xl overflow-hidden h-24 border border-white/20 bg-black/60 shadow-lg">
-                      <img src={img} alt={`Suite photo ${idx + 1}`} className="w-full h-full object-cover" />
-                      {idx === 0 ? (
-                        <span className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black shadow-md">
-                          Cover Photo
-                        </span>
-                      ) : (
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {STANDARD_AMENITIES_CONFIG.map((cat) => {
+                    const CatIcon = cat.icon;
+                    const items = roomFormAmenities[cat.key] || [];
+
+                    return (
+                      <div key={cat.key} className="p-4 rounded-3xl bg-black/60 border border-white/15 space-y-3 shadow-lg">
+                        <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                          <div className="flex items-center space-x-2 text-white">
+                            <div className="p-2 rounded-xl bg-white/10 text-white">
+                              <CatIcon className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-xs">{cat.title}</h4>
+                              <span className="text-[10px] text-zinc-400 font-mono">{items.length} items configured</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center space-x-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleResetAmenityCategory(cat.key)}
+                              className="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-[10px] text-zinc-400 hover:text-white transition-colors"
+                              title="Reset to default inclusions"
+                            >
+                              Reset
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddAmenityItem(cat.key)}
+                              className="px-2.5 py-1 rounded-lg bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {items.length === 0 ? (
+                          <div className="py-4 text-center text-zinc-500 text-[11px] italic">
+                            No inclusions added for this category yet. Click "Add" above.
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                            {items.map((item, idx) => (
+                              <div key={idx} className="flex items-center space-x-2 group">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                                <input
+                                  type="text"
+                                  placeholder={cat.placeholder}
+                                  value={item}
+                                  onChange={(e) => handleUpdateAmenityItem(cat.key, idx, e.target.value)}
+                                  className="flex-1 h-8 px-2.5 rounded-xl bg-black/40 border border-white/10 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none text-xs"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveAmenityItem(cat.key, idx)}
+                                  className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 transition-colors opacity-70 group-hover:opacity-100"
+                                  title="Remove item"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Highlights Pills Under "About This Luxury Suite" */}
+                <div className="p-4 rounded-3xl bg-black/60 border border-white/15 space-y-3 shadow-lg">
+                  <div className="flex items-center justify-between pb-2 border-b border-white/10">
+                    <div>
+                      <h4 className="font-bold text-white text-xs">Suite Feature Highlight Badges</h4>
+                      <p className="text-[10px] text-zinc-400">Pills displayed right beneath "About This Luxury Suite"</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAddHighlight}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-400/15 hover:bg-emerald-400/25 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>Add Highlight</span>
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                    {roomFormHighlights.map((hl, idx) => (
+                      <div key={idx} className="flex items-center space-x-1.5 p-1.5 rounded-xl bg-black/40 border border-white/10">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 ml-1" />
+                        <input
+                          type="text"
+                          placeholder="e.g. Instant QR Pass Check-in"
+                          value={hl}
+                          onChange={(e) => handleUpdateHighlight(idx, e.target.value)}
+                          className="flex-1 h-7 px-2 rounded-lg bg-transparent text-white placeholder:text-zinc-600 focus:outline-none text-xs"
+                        />
                         <button
                           type="button"
-                          onClick={() => {
-                            const reordered = [img, ...roomFormImages.filter((_, i) => i !== idx)];
-                            setRoomFormImages(reordered);
-                          }}
-                          className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/75 text-zinc-300 opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-black transition-all"
+                          onClick={() => handleRemoveHighlight(idx)}
+                          className="p-1 rounded-lg text-rose-400 hover:bg-rose-500/20"
                         >
-                          Make Cover
+                          <Trash2 className="w-3 h-3" />
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
-                        className="absolute top-1.5 right-1.5 p-1 bg-black/80 hover:bg-rose-500 rounded-lg text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all shadow-md"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= TAB 2: BASIC INFO & PRICING ================= */}
+            {roomModalTab === 'basic' && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Suite Name *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Suite 02"
+                      value={roomFormName}
+                      onChange={(e) => setRoomFormName(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Location *</label>
+                    <select
+                      value={roomFormLocation}
+                      onChange={(e) => setRoomFormLocation(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
+                    >
+                      <option value="Antipolo">Antipolo</option>
+                      <option value="Cainta">Cainta</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Price Per Night (₱) *</label>
+                    <input
+                      type="number"
+                      required
+                      min="500"
+                      step="50"
+                      placeholder="2800"
+                      value={roomFormPrice}
+                      onChange={(e) => setRoomFormPrice(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono focus:border-amber-400/60 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Suite Status</label>
+                    <select
+                      value={roomFormStatus}
+                      onChange={(e) => setRoomFormStatus(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
+                    >
+                      <option value="AVAILABLE">AVAILABLE</option>
+                      <option value="MAINTENANCE">MAINTENANCE</option>
+                      <option value="UNAVAILABLE">UNAVAILABLE</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setRoomFormFeatured(!roomFormFeatured)}
+                    className={`w-full p-3 rounded-xl border flex items-center justify-between transition-all ${
+                      roomFormFeatured
+                        ? 'bg-amber-400/20 border-amber-400/50 text-amber-300'
+                        : 'bg-white/5 border-white/10 text-zinc-400 hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <span className={`w-2.5 h-2.5 rounded-full ${roomFormFeatured ? 'bg-amber-400 animate-pulse' : 'bg-zinc-600'}`} />
+                      <span className="font-bold">Featured Suite (Promoted on Public Catalog)</span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase ${
+                      roomFormFeatured ? 'bg-amber-400 text-black' : 'bg-white/10 text-zinc-400'
+                    }`}>
+                      {roomFormFeatured ? 'ENABLED' : 'DISABLED'}
+                    </span>
+                  </button>
+                </div>
+
+                <div>
+                  <label className="text-zinc-400 font-mono block mb-1">About This Luxury Suite (Description)</label>
+                  <textarea
+                    rows={4}
+                    placeholder="Describe the suite sanctuary, design aesthetics, scenic view, and vibe..."
+                    value={roomFormDescription}
+                    onChange={(e) => setRoomFormDescription(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none leading-relaxed"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ================= TAB 3: QUICK SPECS & LOCATION ================= */}
+            {roomModalTab === 'specs' && (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 text-zinc-300 text-xs">
+                  <span className="font-bold text-white block">Suite Highlight Bar Specifications</span>
+                  <span className="text-[11px] text-zinc-400">These 4 specs are showcased right beneath the suite title banner and in the summary booking card.</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Capacity</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2 - 4 Guests"
+                      value={roomFormCapacity}
+                      onChange={(e) => setRoomFormCapacity(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Bed Setup</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. King Luxury Bed"
+                      value={roomFormBedSetup}
+                      onChange={(e) => setRoomFormBedSetup(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Suite Size</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 35 sqm Studio"
+                      value={roomFormSuiteSize}
+                      onChange={(e) => setRoomFormSuiteSize(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Refundable Deposit (₱)</label>
+                    <input
+                      type="number"
+                      placeholder="1000"
+                      value={roomFormSecurityDeposit}
+                      onChange={(e) => setRoomFormSecurityDeposit(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono focus:border-amber-400/60 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Check-in Time</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 2:00 PM onwards"
+                      value={roomFormCheckInTime}
+                      onChange={(e) => setRoomFormCheckInTime(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Check-out Time</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 12:00 PM"
+                      value={roomFormCheckOutTime}
+                      onChange={(e) => setRoomFormCheckOutTime(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white focus:border-amber-400/60 focus:outline-none font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-white/10 space-y-3">
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Location & Surroundings Narrative</label>
+                    <textarea
+                      rows={3}
+                      placeholder="e.g. Located along the breezy scenic ridge of Antipolo, close to iconic overlook cafés, Cloud 9, Pinto Art Museum..."
+                      value={roomFormLocationDescription}
+                      onChange={(e) => setRoomFormLocationDescription(e.target.value)}
+                      className="w-full p-3 rounded-xl bg-black/60 border border-white/15 text-white placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-zinc-400 font-mono block mb-1">Google Maps Pin URL (Optional)</label>
+                    <input
+                      type="url"
+                      placeholder="https://maps.google.com/?q=..."
+                      value={roomFormGoogleMapsUrl}
+                      onChange={(e) => setRoomFormGoogleMapsUrl(e.target.value)}
+                      className="w-full h-10 px-3 rounded-xl bg-black/60 border border-white/15 text-white font-mono placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= TAB 4: HOUSE RULES & STAY POLICIES ================= */}
+            {roomModalTab === 'rules' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-white text-xs">House Rules & Stay Policies</h4>
+                    <p className="text-[10px] text-zinc-400">Configured policy cards displayed on this suite's page</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddHouseRule}
+                    className="px-3 py-1.5 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-xs font-bold flex items-center space-x-1.5 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Stay Policy</span>
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {roomFormHouseRules.map((rule, idx) => (
+                    <div key={idx} className="p-4 rounded-2xl bg-black/60 border border-white/15 space-y-2 relative group shadow-md">
+                      <div className="flex items-center justify-between gap-2">
+                        <input
+                          type="text"
+                          placeholder="e.g. 🚭 No Smoking Inside"
+                          value={rule.title}
+                          onChange={(e) => handleUpdateHouseRule(idx, 'title', e.target.value)}
+                          className="w-full max-w-sm h-8 px-2.5 rounded-xl bg-black/40 border border-white/10 text-white font-bold placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none text-xs"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveHouseRule(idx)}
+                          className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 transition-colors"
+                          title="Remove policy"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        placeholder="Policy description..."
+                        value={rule.desc}
+                        onChange={(e) => handleUpdateHouseRule(idx, 'desc', e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-black/40 border border-white/10 text-zinc-300 placeholder:text-zinc-600 focus:border-amber-400/60 focus:outline-none text-xs"
+                      />
                     </div>
                   ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
-            <div className="pt-3 border-t border-white/10 flex justify-end space-x-2">
-              <button
-                type="button"
-                disabled={isSavingRoom}
-                onClick={() => setShowRoomModal(false)}
-                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white disabled:opacity-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSavingRoom}
-                className="liquid-btn-primary px-6 py-2 rounded-xl font-bold uppercase flex items-center space-x-2 disabled:opacity-50"
-              >
-                {isSavingRoom ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Saving...</span>
-                  </>
+            {/* ================= TAB 5: DEVICE PHOTOS ================= */}
+            {roomModalTab === 'photos' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-zinc-200 font-bold block font-mono text-xs">
+                      Suite Photos from Device ({roomFormImages.length}) *
+                    </label>
+                    <span className="text-[10px] text-zinc-400">Upload high-res photos directly from your phone or computer</span>
+                  </div>
+                  {roomFormImages.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => roomFileInputRef.current?.click()}
+                      className="px-3 py-1 rounded-xl bg-amber-400/15 hover:bg-amber-400/25 text-amber-300 border border-amber-400/30 text-[11px] font-bold flex items-center space-x-1 transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add More Photos</span>
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={roomFileInputRef}
+                  type="file"
+                  accept="image/png, image/jpeg, image/jpg, image/webp"
+                  multiple
+                  onChange={handleDevicePhotoUpload}
+                  className="hidden"
+                />
+
+                {roomFormImages.length === 0 ? (
+                  <label
+                    onClick={() => roomFileInputRef.current?.click()}
+                    className="border-2 border-dashed border-white/20 hover:border-amber-400/60 rounded-2xl p-8 flex flex-col items-center justify-center text-center cursor-pointer bg-black/40 hover:bg-white/5 transition-all group"
+                  >
+                    <div className="w-14 h-14 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center text-amber-400 mb-3 group-hover:scale-110 transition-transform shadow-lg">
+                      <Upload className="w-7 h-7" />
+                    </div>
+                    <span className="font-bold text-white text-sm">Tap to Select Photos from Device</span>
+                    <span className="text-xs text-zinc-400 mt-1">Supports JPG, PNG, WEBP &bull; Select multiple files at once</span>
+                  </label>
                 ) : (
-                  <span>{editingRoom ? 'Update Suite' : 'Save Suite'}</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {roomFormImages.map((img, idx) => (
+                      <div key={idx} className="relative group rounded-2xl overflow-hidden h-28 border border-white/20 bg-black/60 shadow-lg">
+                        <img src={img} alt={`Suite photo ${idx + 1}`} className="w-full h-full object-cover" />
+                        {idx === 0 ? (
+                          <span className="absolute top-2 left-2 px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-amber-400 text-black shadow-md">
+                            Cover Photo
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const reordered = [img, ...roomFormImages.filter((_, i) => i !== idx)];
+                              setRoomFormImages(reordered);
+                            }}
+                            className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[9px] font-bold bg-black/80 text-zinc-300 opacity-0 group-hover:opacity-100 hover:bg-amber-400 hover:text-black transition-all"
+                          >
+                            Make Cover
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setRoomFormImages(roomFormImages.filter((_, i) => i !== idx))}
+                          className="absolute top-2 right-2 p-1.5 bg-black/80 hover:bg-rose-500 rounded-lg text-rose-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all shadow-md"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              </button>
+              </div>
+            )}
+
+            {/* Bottom Actions Bar */}
+            <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+              <div className="text-[11px] text-zinc-400 flex items-center space-x-1">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>All 4 inclusion categories & details are synced live</span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  disabled={isSavingRoom}
+                  onClick={() => setShowRoomModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white disabled:opacity-50 transition-colors font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingRoom}
+                  className="liquid-btn-primary px-7 py-2.5 rounded-xl font-black uppercase tracking-wider flex items-center space-x-2 disabled:opacity-50 shadow-xl"
+                >
+                  {isSavingRoom ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Saving Suite...</span>
+                    </>
+                  ) : (
+                    <span>{editingRoom ? 'Update Suite Sanctuary' : 'Save New Suite'}</span>
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>

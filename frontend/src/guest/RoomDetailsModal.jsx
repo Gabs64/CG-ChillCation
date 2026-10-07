@@ -92,7 +92,7 @@ export default function RoomDetailsModal({ room, onClose, onStartBooking }) {
 
                 <span className="text-xs font-mono text-zinc-300 border border-white/10 px-2.5 py-1 rounded-full flex items-center space-x-1 bg-black/40">
                   <Maximize2 className="w-3 h-3 text-white" />
-                  <span>35 sqm Studio</span>
+                  <span>{room.suite_size || '35 sqm Studio'}</span>
                 </span>
               </div>
 
@@ -107,25 +107,25 @@ export default function RoomDetailsModal({ room, onClose, onStartBooking }) {
                 {room.description}
               </p>
 
-              {/* Included Amenities */}
+              {/* Included Amenities Highlights */}
               <div className="space-y-2.5 mb-6">
-                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block font-mono">Included Amenities</span>
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider block font-mono">Included Amenities & Perks</span>
                 <div className="grid grid-cols-2 gap-2 text-xs text-zinc-200">
                   <div className="flex items-center space-x-2 bg-black/40 p-2.5 rounded-xl border border-white/10">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>King Size Bed</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="truncate">{room.bed_setup || 'King Size Bed'}</span>
                   </div>
                   <div className="flex items-center space-x-2 bg-black/40 p-2.5 rounded-xl border border-white/10">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>High-Speed Wi-Fi</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="truncate">{room.amenities?.entertainment?.[0] || 'High-Speed Wi-Fi'}</span>
                   </div>
                   <div className="flex items-center space-x-2 bg-black/40 p-2.5 rounded-xl border border-white/10">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Hot & Cold Shower</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="truncate">{room.amenities?.bathroom?.[0] || 'Hot & Cold Rain Shower'}</span>
                   </div>
                   <div className="flex items-center space-x-2 bg-black/40 p-2.5 rounded-xl border border-white/10">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                    <span>Smart Ambient Lights</span>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="truncate">{room.amenities?.kitchenette?.[0] || 'Mini Refrigerator & Dining'}</span>
                   </div>
                 </div>
               </div>

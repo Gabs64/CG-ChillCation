@@ -68,6 +68,110 @@ router.get('/settings/public', async (req, res) => {
 // ----------------------------------------------------
 // 2. PUBLIC ROOMS, GALLERIES & AVAILABILITY
 // ----------------------------------------------------
+// Room Customization Defaults & Helper
+// ----------------------------------------------------
+const DEFAULT_AMENITIES = {
+  entertainment: [
+    "55-inch 4K Smart TV with Netflix & YouTube",
+    "Smart Ambient Mood Lighting System",
+    "High-Speed 100+ Mbps Fiber Wi-Fi",
+    "Curated Board & Card Games"
+  ],
+  bedroom: [
+    "King Size Luxury Orthopedic Mattress",
+    "100% Egyptian Cotton Luxury Bed Linens",
+    "Full Blackout Privacy Curtains",
+    "Whisper-Quiet Inverter Air Conditioning"
+  ],
+  bathroom: [
+    "Instant Hot & Cold Rain Shower",
+    "Modern Ceramic Bidet Spray",
+    "Fresh Hotel-Grade Plush Towels",
+    "Hairdryer & Complimentary Toiletries"
+  ],
+  kitchenette: [
+    "Mini Refrigerator & Beverage Chiller",
+    "Microwave Oven & Electric Kettle",
+    "Complete Plates, Cutlery & Wine Glasses",
+    "Dining Counter with Designer Stools"
+  ]
+};
+
+const DEFAULT_HIGHLIGHTS = [
+  "Instant QR Pass Check-in",
+  "Self Keyless Digital Lock",
+  "Cleaned & Sanitized Daily"
+];
+
+const DEFAULT_HOUSE_RULES = [
+  { title: "🚭 No Smoking Inside", desc: "Smoking and vaping are strictly prohibited inside the suite to keep fresh air quality." },
+  { title: "🔇 Quiet Hours", desc: "10:00 PM – 8:00 AM to maintain a relaxing atmosphere for all guests." },
+  { title: "🎫 Instant QR Check-in", desc: "Present your digital booking voucher pass upon arrival for immediate contactless verification." },
+  { title: "💵 Security Deposit", desc: "₱1,000 incidental security deposit required upon check-in, 100% refundable upon room clearance." }
+];
+
+export function formatRoomDetails(room, images = [], paymentMethods = []) {
+  if (!room) return null;
+
+  let parsedAmenities = DEFAULT_AMENITIES;
+  if (room.amenities) {
+    try {
+      const p = typeof room.amenities === 'string' ? JSON.parse(room.amenities) : room.amenities;
+      if (p && typeof p === 'object') {
+        parsedAmenities = {
+          entertainment: Array.isArray(p.entertainment) ? p.entertainment : DEFAULT_AMENITIES.entertainment,
+          bedroom: Array.isArray(p.bedroom) ? p.bedroom : DEFAULT_AMENITIES.bedroom,
+          bathroom: Array.isArray(p.bathroom) ? p.bathroom : DEFAULT_AMENITIES.bathroom,
+          kitchenette: Array.isArray(p.kitchenette) ? p.kitchenette : DEFAULT_AMENITIES.kitchenette
+        };
+      }
+    } catch (e) {
+      parsedAmenities = DEFAULT_AMENITIES;
+    }
+  }
+
+  let parsedHighlights = DEFAULT_HIGHLIGHTS;
+  if (room.highlights) {
+    try {
+      const h = typeof room.highlights === 'string' ? JSON.parse(room.highlights) : room.highlights;
+      if (Array.isArray(h) && h.length > 0) parsedHighlights = h;
+    } catch (e) {
+      parsedHighlights = DEFAULT_HIGHLIGHTS;
+    }
+  }
+
+  let parsedHouseRules = DEFAULT_HOUSE_RULES;
+  if (room.house_rules) {
+    try {
+      const r = typeof room.house_rules === 'string' ? JSON.parse(room.house_rules) : room.house_rules;
+      if (Array.isArray(r) && r.length > 0) parsedHouseRules = r;
+    } catch (e) {
+      parsedHouseRules = DEFAULT_HOUSE_RULES;
+    }
+  }
+
+  return {
+    ...room,
+    is_featured: Boolean(room.is_featured),
+    capacity: room.capacity || '2 - 4 Guests',
+    bed_setup: room.bed_setup || 'King Luxury Bed',
+    suite_size: room.suite_size || '35 sqm Studio',
+    check_in_time: room.check_in_time || '2:00 PM onwards',
+    check_out_time: room.check_out_time || '12:00 PM',
+    security_deposit: room.security_deposit !== undefined && room.security_deposit !== null ? Number(room.security_deposit) : 1000,
+    location_description: room.location_description || (
+      room.location === 'Antipolo'
+        ? 'Located along the breezy scenic ridge of Antipolo, close to iconic overlook cafés, Cloud 9, Pinto Art Museum, and hilltop dining.'
+        : 'Strategically located in Cainta hub, with seamless access to Ortigas Avenue, commercial centers, grocery stores, and staycation hubs.'
+    ),
+    amenities: parsedAmenities,
+    highlights: parsedHighlights,
+    house_rules: parsedHouseRules,
+    images: images.map((img) => img.image_url),
+    image_details: images,
+    payment_methods: paymentMethods.map((pm) => pm.payment_method)
+  };
+}
 
 // Get all rooms (with filters for location and featured)
 router.get('/rooms', async (req, res) => {
@@ -99,13 +203,7 @@ router.get('/rooms', async (req, res) => {
           [room.id]
         );
 
-        return {
-          ...room,
-          is_featured: Boolean(room.is_featured),
-          images: images.map((img) => img.image_url),
-          image_details: images,
-          payment_methods: paymentMethods.map((pm) => pm.payment_method)
-        };
+        return formatRoomDetails(room, images, paymentMethods);
       })
     );
 
@@ -129,13 +227,7 @@ router.get('/rooms/:id', async (req, res) => {
 
     res.json({
       success: true,
-      room: {
-        ...room,
-        is_featured: Boolean(room.is_featured),
-        images: images.map((img) => img.image_url),
-        image_details: images,
-        payment_methods: paymentMethods.map((pm) => pm.payment_method)
-      }
+      room: formatRoomDetails(room, images, paymentMethods)
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -631,7 +723,7 @@ router.get('/admin/arrivals-departures', verifyToken, requireRoles(['STAFF', 'CU
     const todayStr = new Date().toISOString().split('T')[0];
     const targetDate = req.query.date || todayStr;
 
-    // Arrivals on target date
+    // Expected Arrivals - show all customers instead, do not depend on the date
     const arrivals = await all(
       `SELECT b.*, r.room_name, r.location, p.payment_method, p.amount, p.payment_status,
               sd.amount as deposit_amount, sd.payment_status as deposit_status, sd.paid_by as deposit_paid_by, sd.paid_at as deposit_paid_at,
@@ -641,9 +733,7 @@ router.get('/admin/arrivals-departures', verifyToken, requireRoles(['STAFF', 'CU
        LEFT JOIN payments p ON b.id = p.booking_id
        LEFT JOIN security_deposits sd ON b.id = sd.booking_id
        LEFT JOIN booking_payment_breakdown pb ON b.id = pb.booking_id
-       WHERE b.check_in = ?
-       ORDER BY b.id ASC`,
-      [targetDate]
+       ORDER BY b.check_in ASC, b.id ASC`
     );
 
     // Departures on target date
@@ -807,7 +897,7 @@ router.get('/admin/qr/lookup/:ref', verifyToken, requireRoles(['STAFF', 'CUSTOME
     );
 
     if (!booking) {
-      return res.status(404).json({ error: `No booking found for QR Reference "${rawRef}"` });
+      return res.status(404).json({ error: 'No booking found for this QR code.' });
     }
 
     const breakdown = await get('SELECT * FROM booking_payment_breakdown WHERE booking_id = ?', [booking.id]);
@@ -1137,13 +1227,7 @@ router.get('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, res
           'SELECT payment_method FROM room_payment_methods WHERE room_id = ? AND is_enabled = 1',
           [room.id]
         );
-        return {
-          ...room,
-          is_featured: Boolean(room.is_featured),
-          images: images.map((img) => img.image_url),
-          image_details: images,
-          payment_methods: paymentMethods.map((pm) => pm.payment_method)
-        };
+        return formatRoomDetails(room, images, paymentMethods);
       })
     );
     res.json({ success: true, rooms: roomsWithDetails });
@@ -1156,13 +1240,30 @@ router.get('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, res
 // Owner Room Management: Create Room
 router.post('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
-    const { roomName, location, description, pricePerNight, isFeatured = false, googleMapsUrl, images = [], paymentMethods = [] } = req.body;
+    const { 
+      roomName, location, description, pricePerNight, isFeatured = false, googleMapsUrl,
+      capacity = '2 - 4 Guests',
+      bedSetup = 'King Luxury Bed',
+      suiteSize = '35 sqm Studio',
+      checkInTime = '2:00 PM onwards',
+      checkOutTime = '12:00 PM',
+      securityDeposit = 1000,
+      locationDescription,
+      amenities,
+      highlights,
+      houseRules,
+      images = [], 
+      paymentMethods = [] 
+    } = req.body;
 
     if (!roomName || !location || !pricePerNight) {
       return res.status(400).json({ error: 'Room name, location, and price per night are required.' });
     }
 
     const trimmedName = roomName.trim();
+    const amenitiesJson = amenities ? (typeof amenities === 'string' ? amenities : JSON.stringify(amenities)) : JSON.stringify(DEFAULT_AMENITIES);
+    const highlightsJson = highlights ? (typeof highlights === 'string' ? highlights : JSON.stringify(highlights)) : JSON.stringify(DEFAULT_HIGHLIGHTS);
+    const houseRulesJson = houseRules ? (typeof houseRules === 'string' ? houseRules : JSON.stringify(houseRules)) : JSON.stringify(DEFAULT_HOUSE_RULES);
 
     // Check if room with this name already exists (including deactivated)
     const existing = await get('SELECT id, status FROM rooms WHERE LOWER(room_name) = LOWER(?)', [trimmedName]);
@@ -1170,8 +1271,18 @@ router.post('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, re
       if (existing.status === 'DEACTIVATED') {
         // Reactivate and update existing room
         await run(
-          `UPDATE rooms SET location = ?, description = ?, price_per_night = ?, is_featured = ?, google_maps_url = ?, status = 'AVAILABLE', updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-          [location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null, existing.id]
+          `UPDATE rooms SET 
+            location = ?, description = ?, price_per_night = ?, is_featured = ?, google_maps_url = ?, 
+            capacity = ?, bed_setup = ?, suite_size = ?, check_in_time = ?, check_out_time = ?, 
+            security_deposit = ?, location_description = ?, amenities = ?, highlights = ?, house_rules = ?,
+            status = 'AVAILABLE', updated_at = CURRENT_TIMESTAMP 
+           WHERE id = ?`,
+          [
+            location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null,
+            capacity, bedSetup, suiteSize, checkInTime, checkOutTime,
+            securityDeposit, locationDescription || null, amenitiesJson, highlightsJson, houseRulesJson,
+            existing.id
+          ]
         );
         const roomId = existing.id;
         
@@ -1201,9 +1312,16 @@ router.post('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, re
     }
 
     const result = await run(
-      `INSERT INTO rooms (room_name, location, description, price_per_night, is_featured, google_maps_url, status)
-       VALUES (?, ?, ?, ?, ?, ?, 'AVAILABLE')`,
-      [trimmedName, location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null]
+      `INSERT INTO rooms (
+        room_name, location, description, price_per_night, is_featured, google_maps_url,
+        capacity, bed_setup, suite_size, check_in_time, check_out_time, security_deposit,
+        location_description, amenities, highlights, house_rules, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'AVAILABLE')`,
+      [
+        trimmedName, location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null,
+        capacity, bedSetup, suiteSize, checkInTime, checkOutTime, securityDeposit,
+        locationDescription || null, amenitiesJson, highlightsJson, houseRulesJson
+      ]
     );
 
     const roomId = result.lastID;
@@ -1239,7 +1357,12 @@ router.post('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, re
 router.patch('/owner/rooms/:id', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
     const roomId = req.params.id;
-    const { roomName, location, description, pricePerNight, isFeatured, status, googleMapsUrl, images, paymentMethods } = req.body;
+    const { 
+      roomName, location, description, pricePerNight, isFeatured, status, googleMapsUrl,
+      capacity, bedSetup, suiteSize, checkInTime, checkOutTime, securityDeposit,
+      locationDescription, amenities, highlights, houseRules,
+      images, paymentMethods 
+    } = req.body;
 
     const current = await get('SELECT * FROM rooms WHERE id = ?', [roomId]);
     if (!current) {
@@ -1256,6 +1379,25 @@ router.patch('/owner/rooms/:id', verifyToken, requireRoles(['OWNER']), async (re
     if (isFeatured !== undefined) { updates.push('is_featured = ?'); params.push(isFeatured ? 1 : 0); }
     if (status !== undefined) { updates.push('status = ?'); params.push(status); }
     if (googleMapsUrl !== undefined) { updates.push('google_maps_url = ?'); params.push(googleMapsUrl); }
+    if (capacity !== undefined) { updates.push('capacity = ?'); params.push(capacity); }
+    if (bedSetup !== undefined) { updates.push('bed_setup = ?'); params.push(bedSetup); }
+    if (suiteSize !== undefined) { updates.push('suite_size = ?'); params.push(suiteSize); }
+    if (checkInTime !== undefined) { updates.push('check_in_time = ?'); params.push(checkInTime); }
+    if (checkOutTime !== undefined) { updates.push('check_out_time = ?'); params.push(checkOutTime); }
+    if (securityDeposit !== undefined) { updates.push('security_deposit = ?'); params.push(securityDeposit); }
+    if (locationDescription !== undefined) { updates.push('location_description = ?'); params.push(locationDescription); }
+    if (amenities !== undefined) { 
+      updates.push('amenities = ?'); 
+      params.push(typeof amenities === 'string' ? amenities : JSON.stringify(amenities)); 
+    }
+    if (highlights !== undefined) { 
+      updates.push('highlights = ?'); 
+      params.push(typeof highlights === 'string' ? highlights : JSON.stringify(highlights)); 
+    }
+    if (houseRules !== undefined) { 
+      updates.push('house_rules = ?'); 
+      params.push(typeof houseRules === 'string' ? houseRules : JSON.stringify(houseRules)); 
+    }
 
     updates.push('updated_at = CURRENT_TIMESTAMP');
 
@@ -1288,7 +1430,7 @@ router.patch('/owner/rooms/:id', verifyToken, requireRoles(['OWNER']), async (re
       req.user.role,
       'ROOM_UPDATED',
       current.room_name,
-      `Updated settings: Price ₱${pricePerNight || current.price_per_night}, Featured: ${isFeatured !== undefined ? isFeatured : current.is_featured}`
+      `Updated suite settings & inclusions: Price ₱${pricePerNight || current.price_per_night}, Featured: ${isFeatured !== undefined ? isFeatured : current.is_featured}`
     );
 
     res.json({ success: true, message: 'Room updated successfully.' });

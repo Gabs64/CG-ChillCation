@@ -593,7 +593,11 @@ export default function AdminDashboard({ token, currentUser }) {
       if (!res.ok) {
         // Red error state: Keep camera running, display error alert and audible cue
         playScanErrorSound();
-        setQrScanError(data.error || 'No matching booking found for this QR code. Please try another voucher.');
+        const rawErr = data?.error || '';
+        const cleanError = (rawErr && !rawErr.includes('http') && !rawErr.includes('://') && !rawErr.includes('.app') && !rawErr.includes('.com'))
+          ? rawErr
+          : 'No booking found for this QR code. Please try another voucher.';
+        setQrScanError(cleanError);
         setScannedBooking(null);
       } else {
         // Verified Success: stop camera, play cool crystal chime and proceed to details view
@@ -782,7 +786,7 @@ export default function AdminDashboard({ token, currentUser }) {
               }`}
             >
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Arrivals on {selectedDate}</span>
+                <span className="text-xs font-mono text-zinc-400 uppercase tracking-wider">Expected Arrivals (All)</span>
                 <LogIn className="w-4 h-4 text-emerald-400" />
               </div>
               <span className="text-2xl font-black text-white font-mono">
@@ -825,7 +829,7 @@ export default function AdminDashboard({ token, currentUser }) {
           <div className="p-5 rounded-3xl bg-black/50 border border-white/10 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-white/10">
               <h3 className="text-base font-black text-white uppercase tracking-wide">
-                {dailySubTab === 'arrivals' && `Scheduled Arrivals for ${selectedDate}`}
+                {dailySubTab === 'arrivals' && `All Expected Arrivals (${dailyData.arrivals?.length || 0})`}
                 {dailySubTab === 'departures' && `Scheduled Departures for ${selectedDate}`}
                 {dailySubTab === 'in_house' && 'Active In-House Guests'}
               </h3>
@@ -849,7 +853,7 @@ export default function AdminDashboard({ token, currentUser }) {
                 if (!list || list.length === 0) {
                   return (
                     <div className="text-center py-12 text-zinc-500 text-xs italic">
-                      No bookings recorded for this category on {selectedDate}.
+                      {dailySubTab === 'arrivals' ? 'No customer bookings found.' : `No bookings recorded for this category on ${selectedDate}.`}
                     </div>
                   );
                 }

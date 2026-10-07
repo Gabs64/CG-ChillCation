@@ -680,7 +680,8 @@ export const initMockApi = () => {
     // 10. DAILY ARRIVALS & DEPARTURES
     if (pathname === '/api/admin/arrivals-departures' && method === 'GET') {
       const targetDate = query.date || formatDate(new Date());
-      const arrivals = db.bookings.filter((b) => b.check_in === targetDate);
+      // Show all customers in expected arrivals regardless of date
+      const arrivals = [...db.bookings].sort((a, b) => (a.check_in || '').localeCompare(b.check_in || ''));
       const departures = db.bookings.filter((b) => b.check_out === targetDate);
       const inHouse = db.bookings.filter((b) => b.check_in_status === 'CHECKED_IN');
 
@@ -753,7 +754,7 @@ export const initMockApi = () => {
     if (pathname.match(/^\/api\/admin\/qr\/lookup\/(.+)$/) && method === 'GET') {
       const ref = decodeURIComponent(pathname.match(/^\/api\/admin\/qr\/lookup\/(.+)$/)[1]).trim();
       const booking = db.bookings.find((b) => b.reference_number?.toLowerCase() === ref.toLowerCase());
-      if (!booking) return jsonResponse({ error: `No booking found for QR Reference "${ref}"` }, 404);
+      if (!booking) return jsonResponse({ error: 'No booking found for this QR code.' }, 404);
 
       const canCheckIn = booking.check_in_status === 'NOT_CHECKED_IN';
       const canCheckOut = booking.check_in_status === 'CHECKED_IN';

@@ -311,6 +311,36 @@ export const initDb = async () => {
     if (!colNames.includes('updated_at')) {
       await run('ALTER TABLE rooms ADD COLUMN updated_at DATETIME DEFAULT CURRENT_TIMESTAMP');
     }
+    if (!colNames.includes('capacity')) {
+      await run("ALTER TABLE rooms ADD COLUMN capacity TEXT DEFAULT '2 - 4 Guests'");
+    }
+    if (!colNames.includes('bed_setup')) {
+      await run("ALTER TABLE rooms ADD COLUMN bed_setup TEXT DEFAULT 'King Luxury Bed'");
+    }
+    if (!colNames.includes('suite_size')) {
+      await run("ALTER TABLE rooms ADD COLUMN suite_size TEXT DEFAULT '35 sqm Studio'");
+    }
+    if (!colNames.includes('check_in_time')) {
+      await run("ALTER TABLE rooms ADD COLUMN check_in_time TEXT DEFAULT '2:00 PM onwards'");
+    }
+    if (!colNames.includes('check_out_time')) {
+      await run("ALTER TABLE rooms ADD COLUMN check_out_time TEXT DEFAULT '12:00 PM'");
+    }
+    if (!colNames.includes('security_deposit')) {
+      await run('ALTER TABLE rooms ADD COLUMN security_deposit REAL DEFAULT 1000');
+    }
+    if (!colNames.includes('location_description')) {
+      await run('ALTER TABLE rooms ADD COLUMN location_description TEXT');
+    }
+    if (!colNames.includes('highlights')) {
+      await run('ALTER TABLE rooms ADD COLUMN highlights TEXT');
+    }
+    if (!colNames.includes('amenities')) {
+      await run('ALTER TABLE rooms ADD COLUMN amenities TEXT');
+    }
+    if (!colNames.includes('house_rules')) {
+      await run('ALTER TABLE rooms ADD COLUMN house_rules TEXT');
+    }
 
     const imgCols = await all('PRAGMA table_info(room_images)');
     const imgColNames = imgCols.map((c) => c.name);

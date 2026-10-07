@@ -322,25 +322,27 @@ export default function SuiteDetailsPage({ currentUser }) {
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col space-y-1">
                 <Users className="w-5 h-5 text-white/80" />
                 <span className="text-[10px] uppercase font-mono text-zinc-400">Capacity</span>
-                <span className="text-sm font-bold text-white">2 - 4 Guests</span>
+                <span className="text-sm font-bold text-white">{room.capacity || '2 - 4 Guests'}</span>
               </div>
 
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col space-y-1">
                 <BedDouble className="w-5 h-5 text-white/80" />
                 <span className="text-[10px] uppercase font-mono text-zinc-400">Bed Setup</span>
-                <span className="text-sm font-bold text-white">King Luxury Bed</span>
+                <span className="text-sm font-bold text-white">{room.bed_setup || 'King Luxury Bed'}</span>
               </div>
 
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col space-y-1">
                 <Maximize2 className="w-5 h-5 text-white/80" />
                 <span className="text-[10px] uppercase font-mono text-zinc-400">Suite Size</span>
-                <span className="text-sm font-bold text-white">35 sqm Studio</span>
+                <span className="text-sm font-bold text-white">{room.suite_size || '35 sqm Studio'}</span>
               </div>
 
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col space-y-1">
                 <Clock className="w-5 h-5 text-white/80" />
                 <span className="text-[10px] uppercase font-mono text-zinc-400">Check-in / Out</span>
-                <span className="text-sm font-bold text-white">2 PM / 12 PM</span>
+                <span className="text-sm font-bold text-white">
+                  {(room.check_in_time || '2 PM').replace(/ onwards/i, '')} / {room.check_out_time || '12 PM'}
+                </span>
               </div>
             </div>
 
@@ -353,20 +355,16 @@ export default function SuiteDetailsPage({ currentUser }) {
                 <p className="text-sm sm:text-base text-zinc-300 leading-relaxed font-sans whitespace-pre-line">
                   {room.description || 'Experience minimalist luxury and tranquility at CG Chillcation. Designed for couples, staycationers, and solo travelers seeking high aesthetic comfort, ambient lighting, and modern conveniences.'}
                 </p>
-                <div className="pt-4 border-t border-white/10 flex flex-wrap gap-4 text-xs font-mono text-zinc-400">
-                  <div className="flex items-center space-x-1.5 text-emerald-400">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Instant QR Pass Check-in</span>
+                {room.highlights && room.highlights.length > 0 && (
+                  <div className="pt-4 border-t border-white/10 flex flex-wrap gap-4 text-xs font-mono text-zinc-400">
+                    {room.highlights.map((h, i) => (
+                      <div key={i} className={`flex items-center space-x-1.5 ${i === 0 ? 'text-emerald-400 font-bold' : 'text-zinc-300'}`}>
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>{h}</span>
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center space-x-1.5 text-zinc-300">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Self Keyless Digital Lock</span>
-                  </div>
-                  <div className="flex items-center space-x-1.5 text-zinc-300">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Cleaned & Sanitized Daily</span>
-                  </div>
-                </div>
+                )}
               </div>
             </div>
 
@@ -389,22 +387,17 @@ export default function SuiteDetailsPage({ currentUser }) {
                     <h3 className="font-bold text-sm">Entertainment & Atmosphere</h3>
                   </div>
                   <ul className="space-y-2 text-xs text-zinc-300">
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>55-inch 4K Smart TV with Netflix & YouTube</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Smart Ambient Mood Lighting System</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>High-Speed 100+ Mbps Fiber Wi-Fi</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Curated Board & Card Games</span>
-                    </li>
+                    {(room.amenities?.entertainment || [
+                      '55-inch 4K Smart TV with Netflix & YouTube',
+                      'Smart Ambient Mood Lighting System',
+                      'High-Speed 100+ Mbps Fiber Wi-Fi',
+                      'Curated Board & Card Games'
+                    ]).map((item, idx) => (
+                      <li key={idx} className="flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
 
@@ -417,22 +410,17 @@ export default function SuiteDetailsPage({ currentUser }) {
                     <h3 className="font-bold text-sm">Master Bedroom Comfort</h3>
                   </div>
                   <ul className="space-y-2 text-xs text-zinc-300">
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>King Size Luxury Orthopedic Mattress</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>100% Egyptian Cotton Luxury Bed Linens</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Full Blackout Privacy Curtains</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Whisper-Quiet Inverter Air Conditioning</span>
-                    </li>
+                    {(room.amenities?.bedroom || [
+                      'King Size Luxury Orthopedic Mattress',
+                      '100% Egyptian Cotton Luxury Bed Linens',
+                      'Full Blackout Privacy Curtains',
+                      'Whisper-Quiet Inverter Air Conditioning'
+                    ]).map((item, idx) => (
+                      <li key={idx} className="flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
 
@@ -445,22 +433,17 @@ export default function SuiteDetailsPage({ currentUser }) {
                     <h3 className="font-bold text-sm">Private Spa Ensuite</h3>
                   </div>
                   <ul className="space-y-2 text-xs text-zinc-300">
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Instant Hot & Cold Rain Shower</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Modern Ceramic Bidet Spray</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Fresh Hotel-Grade Plush Towels</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Hairdryer & Complimentary Toiletries</span>
-                    </li>
+                    {(room.amenities?.bathroom || [
+                      'Instant Hot & Cold Rain Shower',
+                      'Modern Ceramic Bidet Spray',
+                      'Fresh Hotel-Grade Plush Towels',
+                      'Hairdryer & Complimentary Toiletries'
+                    ]).map((item, idx) => (
+                      <li key={idx} className="flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
 
@@ -473,22 +456,17 @@ export default function SuiteDetailsPage({ currentUser }) {
                     <h3 className="font-bold text-sm">Kitchenette & Dining</h3>
                   </div>
                   <ul className="space-y-2 text-xs text-zinc-300">
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Mini Refrigerator & Beverage Chiller</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Microwave Oven & Electric Kettle</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Complete Plates, Cutlery & Wine Glasses</span>
-                    </li>
-                    <li className="flex items-center space-x-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                      <span>Dining Counter with Designer Stools</span>
-                    </li>
+                    {(room.amenities?.kitchenette || [
+                      'Mini Refrigerator & Beverage Chiller',
+                      'Microwave Oven & Electric Kettle',
+                      'Complete Plates, Cutlery & Wine Glasses',
+                      'Dining Counter with Designer Stools'
+                    ]).map((item, idx) => (
+                      <li key={idx} className="flex items-center space-x-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -505,10 +483,12 @@ export default function SuiteDetailsPage({ currentUser }) {
                     <h3 className="text-base font-bold text-white">
                       {room.location}, Rizal, Philippines
                     </h3>
-                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-                      {room.location === 'Antipolo'
-                        ? 'Located along the breezy scenic ridge of Antipolo, close to iconic overlook cafés, Cloud 9, Pinto Art Museum, and hilltop dining.'
-                        : 'Strategically located in Cainta hub, with seamless access to Ortigas Avenue, commercial centers, grocery stores, and staycation hubs.'}
+                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed whitespace-pre-line">
+                      {room.location_description || (
+                        room.location === 'Antipolo'
+                          ? 'Located along the breezy scenic ridge of Antipolo, close to iconic overlook cafés, Cloud 9, Pinto Art Museum, and hilltop dining.'
+                          : 'Strategically located in Cainta hub, with seamless access to Ortigas Avenue, commercial centers, grocery stores, and staycation hubs.'
+                      )}
                     </p>
                   </div>
                 </div>
@@ -541,22 +521,17 @@ export default function SuiteDetailsPage({ currentUser }) {
                 House Rules & Stay Policies
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-                  <span className="font-bold text-white block">🚭 No Smoking Inside</span>
-                  <span className="text-zinc-400 leading-relaxed">Smoking and vaping are strictly prohibited inside the suite to keep fresh air quality.</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-                  <span className="font-bold text-white block">🔇 Quiet Hours</span>
-                  <span className="text-zinc-400 leading-relaxed">10:00 PM – 8:00 AM to maintain a relaxing atmosphere for all guests.</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-                  <span className="font-bold text-white block">🎫 Instant QR Check-in</span>
-                  <span className="text-zinc-400 leading-relaxed">Present your digital booking voucher pass upon arrival for immediate contactless verification.</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
-                  <span className="font-bold text-white block">💵 Security Deposit</span>
-                  <span className="text-zinc-400 leading-relaxed">₱1,000 incidental security deposit required upon check-in, 100% refundable upon room clearance.</span>
-                </div>
+                {(room.house_rules || [
+                  { title: '🚭 No Smoking Inside', desc: 'Smoking and vaping are strictly prohibited inside the suite to keep fresh air quality.' },
+                  { title: '🔇 Quiet Hours', desc: '10:00 PM – 8:00 AM to maintain a relaxing atmosphere for all guests.' },
+                  { title: '🎫 Instant QR Check-in', desc: 'Present your digital booking voucher pass upon arrival for immediate contactless verification.' },
+                  { title: '💵 Security Deposit', desc: `₱${Number(room.security_deposit || 1000).toLocaleString()} incidental security deposit required upon check-in, 100% refundable upon room clearance.` }
+                ]).map((rule, idx) => (
+                  <div key={idx} className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-1">
+                    <span className="font-bold text-white block">{rule.title}</span>
+                    <span className="text-zinc-400 leading-relaxed">{rule.desc}</span>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -640,15 +615,15 @@ export default function SuiteDetailsPage({ currentUser }) {
                 </div>
                 <div className="flex justify-between py-1 border-b border-white/5">
                   <span className="text-zinc-400">Refundable Deposit</span>
-                  <span className="font-mono text-white">₱1,000 upon arrival</span>
+                  <span className="font-mono text-white">₱{Number(room.security_deposit !== undefined ? room.security_deposit : 1000).toLocaleString()} upon arrival</span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-white/5">
                   <span className="text-zinc-400">Check-in</span>
-                  <span className="text-white font-mono">2:00 PM onwards</span>
+                  <span className="text-white font-mono">{room.check_in_time || '2:00 PM onwards'}</span>
                 </div>
                 <div className="flex justify-between py-1">
                   <span className="text-zinc-400">Check-out</span>
-                  <span className="text-white font-mono">12:00 PM</span>
+                  <span className="text-white font-mono">{room.check_out_time || '12:00 PM'}</span>
                 </div>
               </div>
 
