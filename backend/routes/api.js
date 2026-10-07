@@ -1265,50 +1265,10 @@ router.post('/owner/rooms', verifyToken, requireRoles(['OWNER']), async (req, re
     const highlightsJson = highlights ? (typeof highlights === 'string' ? highlights : JSON.stringify(highlights)) : JSON.stringify(DEFAULT_HIGHLIGHTS);
     const houseRulesJson = houseRules ? (typeof houseRules === 'string' ? houseRules : JSON.stringify(houseRules)) : JSON.stringify(DEFAULT_HOUSE_RULES);
 
-    // Check if room with this name already exists (including deactivated)
-    const existing = await get('SELECT id, status FROM rooms WHERE LOWER(room_name) = LOWER(?)', [trimmedName]);
+    // Check if room with this name already exists
+    const existing = await get('SELECT id FROM rooms WHERE LOWER(room_name) = LOWER(?)', [trimmedName]);
     if (existing) {
-      if (existing.status === 'DEACTIVATED') {
-        // Reactivate and update existing room
-        await run(
-          `UPDATE rooms SET 
-            location = ?, description = ?, price_per_night = ?, is_featured = ?, google_maps_url = ?, 
-            capacity = ?, bed_setup = ?, suite_size = ?, check_in_time = ?, check_out_time = ?, 
-            security_deposit = ?, location_description = ?, amenities = ?, highlights = ?, house_rules = ?,
-            status = 'AVAILABLE', updated_at = CURRENT_TIMESTAMP 
-           WHERE id = ?`,
-          [
-            location, description || '', pricePerNight, isFeatured ? 1 : 0, googleMapsUrl || null,
-            capacity, bedSetup, suiteSize, checkInTime, checkOutTime,
-            securityDeposit, locationDescription || null, amenitiesJson, highlightsJson, houseRulesJson,
-            existing.id
-          ]
-        );
-        const roomId = existing.id;
-        
-        await run('DELETE FROM room_images WHERE room_id = ?', [roomId]);
-        const imgList = Array.isArray(images) && images.length > 0 ? images : [
-          'https://images.unsplash.com/photo-1618773928121-c32242e63f39?auto=format&fit=crop&w=1200&q=80',
-          'https://images.unsplash.com/photo-1590490360182-c3d57733427?auto=format&fit=crop&w=1200&q=80'
-        ];
-        for (let i = 0; i < imgList.length; i++) {
-          await run(
-            `INSERT INTO room_images (room_id, image_url, display_order, is_primary) VALUES (?, ?, ?, ?)`,
-            [roomId, imgList[i], i + 1, i === 0 ? 1 : 0]
-          );
-        }
-
-        await run('DELETE FROM room_payment_methods WHERE room_id = ?', [roomId]);
-        const methods = Array.isArray(paymentMethods) && paymentMethods.length > 0 ? paymentMethods : ['QR Ph', 'Dragonpay', 'GCash', 'Maya', 'Bank Transfer'];
-        for (const pm of methods) {
-          await run(`INSERT INTO room_payment_methods (room_id, payment_method, is_enabled) VALUES (?, ?, 1)`, [roomId, pm]);
-        }
-
-        await recordAuditLog(req.user.name, req.user.role, 'ROOM_REACTIVATED', trimmedName, `Reactivated and updated suite in ${location} at ₱${pricePerNight}/night`);
-        return res.json({ success: true, message: 'Room reactivated and updated successfully', roomId });
-      } else {
-        return res.status(400).json({ error: `A suite named "${trimmedName}" already exists. Please choose a different suite name.` });
-      }
+      return res.status(400).json({ error: `A suite named "${trimmedName}" already exists. Please choose a different suite name.` });
     }
 
     const result = await run(
@@ -1439,20 +1399,44 @@ router.patch('/owner/rooms/:id', verifyToken, requireRoles(['OWNER']), async (re
   }
 });
 
-// Owner Room Management: Deactivate / Remove Room
+// Owner Room Management: Permanently Delete / Remove Room from Database
 router.delete('/owner/rooms/:id', verifyToken, requireRoles(['OWNER']), async (req, res) => {
   try {
     const roomId = req.params.id;
     const room = await get('SELECT * FROM rooms WHERE id = ?', [roomId]);
-    if (!room) return res.status(404).json({ error: 'Room not found.' });
+    if (!room) return res.status(404).json({ error: 'Room not found in database.' });
 
-    // Deactivate rather than delete to preserve historical booking data (Section 20)
-    await run('UPDATE rooms SET status = "DEACTIVATED" WHERE id = ?', [roomId]);
-    await recordAuditLog(req.user.name, req.user.role, 'ROOM_DEACTIVATED', room.room_name, 'Deactivated room to preserve historical records');
+    // 1. Delete associated bookings and their related records
+    const bookings = await all('SELECT id FROM bookings WHERE room_id = ?', [roomId]);
+    for (const b of bookings) {
+      await run('DELETE FROM booking_inclusions WHERE booking_id = ?', [b.id]);
+      await run('DELETE FROM booking_policy_acknowledgements WHERE booking_id = ?', [b.id]);
+      await run('DELETE FROM booking_payment_breakdown WHERE booking_id = ?', [b.id]);
+      await run('DELETE FROM payments WHERE booking_id = ?', [b.id]);
+      await run('DELETE FROM security_deposits WHERE booking_id = ?', [b.id]);
+      await run('DELETE FROM guest_experiences WHERE booking_id = ?', [b.id]);
+    }
+    await run('DELETE FROM bookings WHERE room_id = ?', [roomId]);
 
-    res.json({ success: true, message: 'Room deactivated successfully.' });
+    // 2. Delete room photos and room payment methods
+    await run('DELETE FROM room_images WHERE room_id = ?', [roomId]);
+    await run('DELETE FROM room_payment_methods WHERE room_id = ?', [roomId]);
+
+    // 3. Permanently remove the room record from database
+    await run('DELETE FROM rooms WHERE id = ?', [roomId]);
+
+    await recordAuditLog(
+      req.user.name,
+      req.user.role,
+      'ROOM_DELETED',
+      room.room_name,
+      `Permanently deleted suite "${room.room_name}" (ID: ${roomId}) from database`
+    );
+
+    res.json({ success: true, message: 'Room permanently deleted from database.' });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('Error deleting room from database:', error);
+    res.status(500).json({ error: error.message || 'Failed to permanently delete room from database' });
   }
 });
 
